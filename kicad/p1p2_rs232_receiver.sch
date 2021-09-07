@@ -952,7 +952,7 @@ Connection ~ 2750 3600
 Wire Wire Line
 	2750 3600 2650 3600
 Wire Wire Line
-	2650 4400 4200 4400
+	2650 4400 3750 4400
 Wire Wire Line
 	7500 1700 7400 1700
 $Comp
@@ -1035,11 +1035,6 @@ Wire Notes Line
 	7800 2400 7800 1150
 Wire Notes Line
 	7800 1150 6650 1150
-Wire Wire Line
-	2650 4300 2750 4300
-Wire Wire Line
-	2750 4300 2750 3900
-Connection ~ 2750 3900
 $Comp
 L Device:LED D104
 U 1 1 616D1F20
@@ -1370,4 +1365,77 @@ Wire Wire Line
 	1700 3600 1500 3600
 Wire Wire Line
 	1700 3900 1850 3900
+$Comp
+L Device:C_Small C118
+U 1 1 61385EAB
+P 2800 4650
+F 0 "C118" V 2571 4650 50  0000 C CNN
+F 1 "10n" V 2662 4650 50  0000 C CNN
+F 2 "Capacitor_SMD:C_0805_2012Metric_Pad1.18x1.45mm_HandSolder" H 2800 4650 50  0001 C CNN
+F 3 "~" H 2800 4650 50  0001 C CNN
+	1    2800 4650
+	-1   0    0    1   
+$EndComp
+$Comp
+L power:GND #PWR0133
+U 1 1 613863F9
+P 2800 4850
+F 0 "#PWR0133" H 2800 4600 50  0001 C CNN
+F 1 "GND" V 2805 4722 50  0000 R CNN
+F 2 "" H 2800 4850 50  0001 C CNN
+F 3 "" H 2800 4850 50  0001 C CNN
+	1    2800 4850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2800 4850 2800 4750
+Wire Wire Line
+	2800 4550 2800 4300
+Wire Wire Line
+	2800 4300 2650 4300
+$Comp
+L Device:R_Small R115
+U 1 1 6139F506
+P 3400 4300
+F 0 "R115" V 3300 4200 50  0000 L CNN
+F 1 "120k" V 3200 4200 50  0000 L CNN
+F 2 "Resistor_SMD:R_0805_2012Metric_Pad1.20x1.40mm_HandSolder" H 3400 4300 50  0001 C CNN
+F 3 "~" H 3400 4300 50  0001 C CNN
+	1    3400 4300
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	3300 4300 3100 4300
+Connection ~ 2800 4300
+Wire Wire Line
+	3500 4300 3750 4300
+Wire Wire Line
+	3750 4300 3750 4400
+Connection ~ 3750 4400
+$Comp
+L Device:D_Schottky D110
+U 1 1 613BA204
+P 3450 4750
+F 0 "D110" H 3450 4533 50  0000 C CNN
+F 1 "D_Schottky" H 3450 4624 50  0000 C CNN
+F 2 "Diode_SMD:D_SOD-123" H 3450 4750 50  0001 C CNN
+F 3 "~" H 3450 4750 50  0001 C CNN
+	1    3450 4750
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	3600 4750 3750 4750
+Wire Wire Line
+	3750 4750 3750 4400
+Wire Wire Line
+	3750 4400 4200 4400
+Wire Wire Line
+	3300 4750 3100 4750
+Wire Wire Line
+	3100 4750 3100 4300
+Connection ~ 3100 4300
+Wire Wire Line
+	3100 4300 2800 4300
+Text Notes 3300 5250 2    50   ~ 0
+tRC optimized for 9600baud @ 11bit
 $EndSCHEMATC
