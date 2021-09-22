@@ -1,3 +1,5 @@
 (sym_lib_table
   (lib (name MAX22088)(type Legacy)(uri ${KIPRJMOD}/MAX22088.lib)(options "")(descr ""))
+  (lib (name LTC6995)(type Legacy)(uri ${KIPRJMOD}/LTC6995.lib)(options "")(descr ""))
+  (lib (name promicro)(type Legacy)(uri /home/prudolph/Projects/ProMicroKiCad/promicro_library/promicro.lib)(options "")(descr ""))
 )
