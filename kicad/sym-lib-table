@@ -1,6 +1,6 @@
 (sym_lib_table
-  (lib (name MAX22088)(type Legacy)(uri ${KIPRJMOD}/MAX22088.lib)(options "")(descr ""))
-  (lib (name LTC6995)(type Legacy)(uri ${KIPRJMOD}/LTC6995.lib)(options "")(descr ""))
-  (lib (name promicro)(type Legacy)(uri /home/prudolph/Projects/ProMicroKiCad/promicro_library/promicro.lib)(options "")(descr ""))
-  (lib (name LM4861)(type Legacy)(uri ${KIPRJMOD}/LM4861.lib)(options "")(descr ""))
+  (lib (name "MAX22088")(type "Legacy")(uri "${KIPRJMOD}/MAX22088.lib")(options "")(descr ""))
+  (lib (name "p1p2_rs232_receiver-rescue")(type "Legacy")(uri "${KIPRJMOD}/p1p2_rs232_receiver-rescue.lib")(options "")(descr ""))
+  (lib (name "Rp2040")(type "Legacy")(uri "/home/prudolph/Projects/OWN/RP_Silicon_KiCad/KiCadLibraries/MCU_RaspberryPi_and_Boards.lib")(options "")(descr ""))
+  (lib (name "RPI4")(type "Legacy")(uri "/home/prudolph/Projects/OWN/RPi_Hat_Template/RPi_Hat.lib")(options "")(descr ""))
 )
