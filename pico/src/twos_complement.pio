@@ -1,0 +1,86 @@
+; Copyright (c) 2022 Patrick Rudolph
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+.program twos_complement
+
+; Alternates between the following two modes:
+;
+; 1) Pops one 8-bit integer from the input FIFO and calculate the twos complement.
+;    Pushes it to the output FIFO.
+;
+; 2) Pops one 8-bit integer from the input FIFO and pushes it unmodified to the
+;    output FIFO.
+;
+; To be used with an ADC in RR mode and DMA to negate the data of the second channel.
+; This could be done in software as well, but requires CPU overhead that can be avoided,
+; by this hardware only solution.
+
+entry:
+	set x, 7
+	pull block
+next_0: ; 5 instructions per bit
+	; Get one bit from OSR
+	out y, 1
+
+	; Shift into ISR
+	in y, 1
+	jmp x-- dec_x
+dec_x:
+	jmp !x done_null ; The only case where this is reached is encoding 0
+	jmp !y next_0
+	jmp next_invert
+
+done_null:
+	set y, 0
+	jmp done
+
+next_invert: ; 4 instructions per bit
+	; Get one bit from OSR
+	out y, 1
+	; invert
+	mov y, ~y
+	; Shift into ISR
+	in y, 1
+	jmp x-- next_invert
+done_invert:
+	set y, 31
+done:
+	; push high byte
+	in y, 4
+	in y, 4
+
+	in null, 16
+	push block
+
+	; Get second byte and don't do any modification
+	pull block
+	out y, 8
+	in y, 8
+	in null, 24
+	push block
+
+	jmp entry
+
+
+% c-sdk {
+static inline void twos_complement_program_init(PIO pio, uint sm, uint offset) {
+	pio_sm_config c = twos_complement_program_get_default_config(offset);
+
+	sm_config_set_in_shift(&c, true, false, 8);
+	sm_config_set_out_shift(&c, true, false, 16);
+
+	pio_sm_init(pio, sm, offset, &c);
+	pio_sm_set_enabled(pio, sm, true);
+}
+
+static inline const volatile void *twos_complement_dma_rx_reg(PIO pio, uint sm) {
+	return &pio->rxf[sm];
+}
+
+static inline volatile void *twos_complement_dma_tx_reg(PIO pio, uint sm) {
+	return &pio->txf[sm];
+}
+
+%}
