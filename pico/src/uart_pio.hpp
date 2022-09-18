@@ -24,8 +24,10 @@ class UARTPio
 	bool DataWaiting(void);
 	void EnableShutdown(bool state);
 	void ClearFifo(void);
+	bool Error(void);
 
 	private:
+	bool error;
 	PIO pio;
 	uint sm;
 	// Pin2 and Pin3 are used for P1P2 transmission

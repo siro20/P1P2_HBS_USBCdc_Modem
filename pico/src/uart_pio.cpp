@@ -9,7 +9,7 @@ static void pio_irq0_tx_fifo_not_full_handler()
 	UARTPio& pio = UARTPio::getInstance();
 	// Try to move data from SW FIFO to HW FIFO
 	pio.DrainSWFifo();
-	printf("pio_irq0_tx_fifo_not_full_handler\n");
+
 	pio_interrupt_clear(pio0, pis_sm0_tx_fifo_not_full);
 	irq_clear(PIO0_IRQ_0);
 }
@@ -55,7 +55,9 @@ void UARTPio::ClearFifo(void) {
 void UARTPio::Send(const uint8_t data) {
 	if (!pio_sm_is_tx_fifo_full(this->pio, this->sm))
 		p1p2_uart_tx(this->pio, this->sm, data);
-	else {
+	else if (this->fifo.Full()) {
+		this->error = true;
+	} else {
 		this->fifo.Push(data);
 		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, true);
 	}
@@ -76,4 +78,11 @@ void UARTPio::DrainSWFifo(void) {
 // Returns true if the software FIFO has data
 bool UARTPio::DataWaiting(void) {
 	return !this->fifo.Empty();
+}
+
+// Returns true if a buffer overrun was detected
+bool UARTPio::Error(void) {
+	bool tmp = this->error;
+	this->error = false;
+	return tmp;
 }
