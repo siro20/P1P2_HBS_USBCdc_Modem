@@ -5,13 +5,13 @@ template <size_t N>
 class LineBusy
 {
 	public:
-		LineBusy(const int16_t level) :
+		LineBusy(const int32_t level) :
 		reg(),
 		level(level)
 		{
 		}
 
-		void Update(const int16_t in) {
+		void Update(const int32_t in) {
 			// Shift in new value
 			this->reg.Update(in, NULL);
 		}
@@ -29,8 +29,8 @@ class LineBusy
 		}
 
 	private:
-		ShiftReg<int16_t, N> reg;
-		int16_t level;
+		ShiftReg<int32_t, N> reg;
+		int32_t level;
 };
 
 

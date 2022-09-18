@@ -4,7 +4,7 @@
 #include <iostream>
 using namespace std;
 
-// 32x oversampling, lowpass 67200Hz
+// The compiler generates sub-optimal code when using 16bit data types....
 
 static const int32_t coefficients[] = {
 	-0.071383729317764918 * 0x7fff,

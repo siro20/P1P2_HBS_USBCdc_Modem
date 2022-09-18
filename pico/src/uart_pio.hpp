@@ -9,7 +9,7 @@ class UARTPio
 	public:
 	static UARTPio& getInstance(void)
 	{
-		static UARTPio instance;
+		__scratch_y("UARTPioInstance") static UARTPio instance;
 		return instance;
 	}
 

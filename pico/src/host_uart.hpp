@@ -13,7 +13,7 @@ class HostUART : public LineReceiver<128>
 
 		static HostUART& getInstance(void)
 		{
-			static HostUART instance;
+			__scratch_y("host_uart_instance") static HostUART instance;
 			return instance;
 		}
 

@@ -9,7 +9,7 @@ class DifferentialADC
 	public:
 		static DifferentialADC& getInstance(void)
 		{
-			static DifferentialADC instance;
+			__scratch_x("ADCInstance") static DifferentialADC instance;
 			return instance;
 		}
 		~DifferentialADC(void);

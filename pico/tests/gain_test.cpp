@@ -5943,7 +5943,7 @@ static int16_t testdata[] = {
 TEST(Gain, Test)
 {
 	AGC c;
-	int16_t out;
+	int32_t out;
 
 	for (size_t i = 0; i < sizeof(testdata)/sizeof(testdata[0]); i++) {
 		c.Update(testdata[i], &out);

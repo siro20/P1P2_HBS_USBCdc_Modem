@@ -11,8 +11,8 @@ amplitude(1000)
 
 // Update returns false if no new data is available.
 // Update returns true if new data has been placed in out.
-bool AGC::Update(const int16_t in, int16_t *out) {
-	int16_t tmp = in;
+bool AGC::Update(const int32_t in, int32_t *out) {
+	int32_t tmp = in;
 	if (in < 0)
 		tmp = -in;
 
@@ -24,10 +24,12 @@ bool AGC::Update(const int16_t in, int16_t *out) {
 		this->amplitude --;
 	}
 
-	if (this->amplitude > (BUS_HIGH_MV * 2))
-		*out = (in * (BUS_HIGH_MV * 2)) / this->amplitude;
-	else
+	if (this->amplitude > (BUS_HIGH_MV * 2)) {
+		*out = in * (BUS_HIGH_MV * 2) / this->amplitude;
+	} else {
 		*out = in;
+	}
+
 	return true;
 }
 

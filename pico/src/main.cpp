@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <pico/platform.h>
 #include <pico/stdlib.h>
+#include <pico/multicore.h>
+
 #include <hardware/sync.h>
 
 #include "adc.hpp"
@@ -14,6 +16,7 @@
 #include "channel_comp.hpp"
 #include "gain.hpp"
 #include "dcblock.hpp"
+#include "led_manager.hpp"
 
 //
 // Global signal processing blocks
@@ -57,32 +60,30 @@ __scratch_x("ChannelComp") ChannelComp comp;
 // match each others value.
 __scratch_x("DCblock") DCblock dcblock;
 
-// gain adjust the signal amplitude to 2*P1/P2 bus high level = 2.8V.
-// For transmitters driving higher voltage pulses on the bus, this also
-// improves bus idle detection by lowering the overshoot after a "high"
-// symbol.
-__scratch_x("AGC") AGC gain;
-
 // p1p2uart decodes the P1P2 data signal to bytes. It can detect parity errors, frame
 // errors and DC errors ("0" not encoded as alternating up/down).
-__scratch_x("UART")  UART p1p2uart(800, UART::PARITY_EVEN);
+UART p1p2uart(BUS_LOW_MV, UART::PARITY_EVEN);
 
-// pio implements the P1P2 transmitting part. The caller must avoid bus collisions on
-// the half duplex P1P2 bus. pio has an internal 64 byte software fifo.
-UARTPio& uart_tx = UARTPio::getInstance();
+// busy gives an approximation if the line is currently in use.
+__scratch_x("Busy") LineBusy<16> busy(BUS_HIGH_MV*2/2);
+
+// uart_tx implements the P1P2 transmitting part. The caller must avoid bus collisions on
+// the half duplex P1P2 bus. uart_tx has an internal 64 byte software fifo.
+__scratch_y("UART") UARTPio& uart_tx = UARTPio::getInstance();
 
 // HostUART implement the logic to interface with the host
 // It generates and decodes the messages transceived on the host interfaces.
 // It keeps an internal time and update the status bits on internal error.
-//HostUART& hostUart = HostUART::getInstance();
-
-// busy gives an approximation if the line is currently in use.
-LineBusy<16> busy(BUS_HIGH_MV*2/2);
+__scratch_y("host_uart") HostUART& hostUart = HostUART::getInstance();
 
 // LED drivers
-LEDdriver PowerLED = LEDdriver(21);
-LEDdriver TxLED = LEDdriver(19);
-LEDdriver RxLED = LEDdriver(18);
+__scratch_y("pled") LEDdriver PowerLED = LEDdriver(21);
+__scratch_y("tled") LEDdriver TxLED = LEDdriver(19);
+__scratch_y("rled") LEDdriver RxLED = LEDdriver(18);
+
+// The LED manager drives various patterns on the LEDs depending on the current
+// system state.
+__scratch_y("ledmanager") LEDManager LedManager(RxLED, TxLED, PowerLED);
 
 struct csv {
 	int16_t sample;
@@ -91,45 +92,93 @@ struct csv {
 	int16_t adcb;
 };
 
-int main(void) {
-	uint8_t rx_data;
-	bool rx_error;
-	int32_t adc_data, fir_data, resamp_data, compensated_data, gain_data, ac_data;
-	//struct csv samples[2048];
-	int i = 0, j = 0;
-	Message rx;
-	int16_t h, l;
-	bool now = true;
+volatile bool FifoErr;
+volatile bool DADCErr;
 
-	stdio_init_all();
-
+static void core1_entry() {
+	// Millisecond tracking
+	uint32_t ms_since_boot, ms_now;
+	// Increments from 0 to 1000
+	uint32_t second_cnt;
+	int j = 0;
 	sleep_ms(3000);
-	PowerLED.Set(LEDdriver::LED_ON);
-	TxLED.Set(LEDdriver::LED_BLINK_SLOW);
-	RxLED.Set(LEDdriver::LED_BLINK_FAST);
 
 	printf("\n===========================\n");
 	printf("RP2040 ADC and Test Console\n");
 	printf("===========================\n");
 	uart_default_tx_wait_blocking();
 
+	second_cnt = 0;
+	while(1) {
+		//__wfe();
+
+		ms_now = to_ms_since_boot(get_absolute_time());
+		if (ms_now != ms_since_boot) {
+			ms_since_boot = ms_now;
+			second_cnt++;
+		}
+
+		if (second_cnt == 2) {
+			uart_tx.Send(j++);
+			second_cnt = 0;
+		}
+
+		if (multicore_fifo_rvalid()) {
+			uint32_t data = multicore_fifo_pop_blocking();
+			LedManager.ActivityRx();
+
+			// Fixme bus collision?
+			if (data & (1 << 8)) {
+				LedManager.TransmissionErrorRx();
+				printf("c ");
+
+			}
+			//printf("%02x ", data & 0xff);
+		}
+		if (uart_tx.Transmitting()) {
+			LedManager.ActivityTx();
+		}
+		if (DADCErr) {
+			printf("d ");
+			DADCErr = false;
+			LedManager.InternalError();
+		}
+		if (FifoErr) {
+			printf("f ");
+			FifoErr = false;
+			LedManager.InternalError();
+		}
+		if (uart_tx.Error()) {
+			printf("u ");
+
+			LedManager.InternalError();
+		}
+	};
+}
+
+int main(void) {
+	uint8_t rx_data;
+	uint32_t fifo_data;
+	bool rx_error;
+	int32_t adc_data, fir_data, resamp_data, ac_data;
+
+	stdio_init_all();
+
+	multicore_launch_core1(core1_entry);
+
+	DADCErr = false;
+	FifoErr = false;
+
 	dadc.SetGain((uint16_t)(1.51 * 0x100));
 	dadc.Start();
 
-	for (;;) {
-		//__wfe();
-#if 1
-		if (now) {
-			uart_tx.Send(j++);
-
-			now = false;
-		}
-#endif
+	for (;;) {	
 		if(!dadc.Update(&adc_data)) {
+			__wfe();
 			continue;
 		}
 		if (dadc.Error ()) {
-			printf("DAC overrun\n");
+			DADCErr = true;
 			dadc.Reset();
 			continue;
 		}
@@ -142,49 +191,23 @@ int main(void) {
 		if (!dcblock.Update(resamp_data, &ac_data)) {
 			continue;
 		}
-
-		//if (!comp.Update(resamp_data, &compensated_data)) {
-		//	continue;
-		//}
-
-	i++;
-	if (i == 4096) {
-		i = 0;
-		now = true;
-	}
-
-		//if (!gain.Update(resamp_data, &gain_data)) {
-		//	continue;
-		//}
 		// Detect line idle here for packet frame detection
 		//busy.Update(resamp_data);
-		// Detect packet frame and move to other core if ready
-#if 0
-		if (rx.Length > 0) {
-			if (busy.Busy())
-				rx.Time = time_us_64();
-			else if (time_us_64() - rx.Time > 520) {// 1041usec == 9600 baud * 10symbols. FIXME!
-				// TODO: send to other core
-				//printf("%s", rx.c_str());
-				rx.Length = 0;
-			}
-		}
-#endif
+
 		rx_data = 0;
 		if (!p1p2uart.Update(ac_data, &rx_data, &rx_error)) {
 			continue;
 		}
-		if (!rx_error) {
-			rx.Data[rx.Length] = rx_data;
-			rx.Length++;
-			rx.Time = time_us_64();
-			if (rx.Length == 32) {
-				//for (int i = 0; i < 32; i++)
-				//	printf("%02x ", rx.Data[i]);
-				rx.Length = 0;
-				//while(1);
-			}
+
+		fifo_data = rx_data;
+		if (rx_error)
+			fifo_data |= 1 << 8;
+
+		if (!multicore_fifo_wready()) {
+			FifoErr = true;
+			continue;
 		}
+		multicore_fifo_push_timeout_us(fifo_data, 0);
 	}
 
 }
