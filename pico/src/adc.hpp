@@ -19,7 +19,7 @@ class DifferentialADC
 
 		void Reset(void);
 
-		bool Update(int16_t *out);
+		bool Update(int32_t *out);
 		bool Error(void);
 		void SetGain(uint16_t gain);
 		void Start(void);
@@ -36,7 +36,7 @@ class DifferentialADC
 	
 		uint8_t off;
 		bool error;
-		int16_t gain;
+		int32_t gain;
 		// PIO
 		PIO pio;
 		uint sm;

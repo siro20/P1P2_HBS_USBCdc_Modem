@@ -183,7 +183,7 @@ void DifferentialADC::Reset(void) {
 // Update returns false if no new data is available.
 // Update returns true if new data has been placed in out.
 // out holds the sampled voltage in mV
-bool DifferentialADC::Update(int16_t *out) {
+bool DifferentialADC::Update(int32_t *out) {
 	uint32_t tc_hw;
 	int16_t x1, x2, y;
 	int16_t diff;
@@ -214,7 +214,7 @@ bool DifferentialADC::Update(int16_t *out) {
 	this->off++;
 
 	// Apply gain to convert DAC value to mV
-	*out = (diff * (uint32_t)this->gain) >> 8;
+	*out = (diff * this->gain) >> 8;
 
 	return true;
 }

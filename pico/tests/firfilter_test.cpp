@@ -3,7 +3,7 @@
 
 #include "fir_filter.hpp"
 
-static float SignalRMS(int16_t *signal, size_t len)
+static float SignalRMS(int32_t *signal, size_t len)
 {
 	float ret = 0;
 	for (size_t i = 0; i < len; i++)
@@ -14,8 +14,8 @@ static float SignalRMS(int16_t *signal, size_t len)
 TEST(FIRfilter, Filter)
 {
 	FIRFilter f;
-	int16_t *data = new int16_t[256];
-	int16_t *out = new int16_t[256];
+	int32_t data[256];
+	int32_t out[256];
 
 	for (size_t freq = 1; freq < 128; freq++) {
 	for (size_t j=0;j < 256; j++) {
@@ -28,15 +28,13 @@ TEST(FIRfilter, Filter)
 
 	std::cout << "RMS " << SignalRMS(out, 256) << std::endl;
 	}
-	delete[] data;
-	delete[] out;
 }
 
 TEST(FIRfilter, Plot)
 {
 	FIRFilter f;
-	int16_t *data = new int16_t[256];
-	int16_t *out = new int16_t[256];
+	int32_t data[256];
+	int32_t out[256];
 
 	int j = 0;
 	// x32 oversampling
@@ -61,7 +59,4 @@ TEST(FIRfilter, Plot)
 		std::cout << out[i] << ", ";
 	}
 	std::cout <<  std::endl;
-
-	delete[] data;
-	delete[] out;
 }

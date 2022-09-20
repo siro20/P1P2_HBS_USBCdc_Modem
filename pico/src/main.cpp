@@ -35,13 +35,13 @@ __scratch_x("FIRFilter") FIRFilter filter;
 // resampler drops 3 samples out of 4 as it's not needed any more after
 // FIR filtering the signal.
 // Provides an 8x oversampled signal.
-__scratch_x("Resample") Resample<int16_t> resampler(3);
+__scratch_x("Resample") Resample<int32_t> resampler(3);
 #else
 #if (FIR_OVERSAMPLING_RATE / UART_OVERSAMPLING_RATE) == 2
 // resampler drops 1 samples out of 2 as it's not needed any more after
 // FIR filtering the signal.
 // Provides an 8x oversampled signal.
-__scratch_x("Resample") Resample<int16_t> resampler(1);
+__scratch_x("Resample") Resample<int32_t> resampler(1);
 #else
 #error Unsupported FIR_OVERSAMPLING_RATE to UART_OVERSAMPLING_RATE ratio!
 #endif
@@ -88,7 +88,7 @@ struct csv {
 int main(void) {
 	uint8_t rx_data;
 	bool rx_error;
-	int16_t adc_data, fir_data, resamp_data, compensated_data, gain_data;
+	int32_t adc_data, fir_data, resamp_data, compensated_data, gain_data;
 	//struct csv samples[2048];
 	int i = 0, j = 0;
 	Message rx;

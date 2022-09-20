@@ -43,6 +43,7 @@ uint32_t UARTBit<T, N>::Length(void) {
 
 template <class T, size_t N>
 inline void UARTBit<T, N>::ShiftIn(const T in) {
+	const T in_abs = abs(in);
 	assert(this->off < this->Length());
 
 	// Place two times in buffer to make sure reading never wraps
@@ -50,13 +51,14 @@ inline void UARTBit<T, N>::ShiftIn(const T in) {
 	this->data[this->off + N] = in;
 
 	// Place two times in buffer to make sure reading never wraps
-	this->data_abs[this->off] = abs(in);
-	this->data_abs[this->off + N] = abs(in);
+	this->data_abs[this->off] = in_abs;
+	this->data_abs[this->off + N] = in_abs;
 
 	this->off++;
 	if (this->off == N)
 		this->off = 0;
 }
 
+template class UARTBit<int32_t, 16>;
 template class UARTBit<int16_t, 16>;
 template class UARTBit<int16_t, 8>;

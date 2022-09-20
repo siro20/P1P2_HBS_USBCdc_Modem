@@ -26,8 +26,8 @@ inline bool UART::ZeroLevelDetect(const int16_t prob) {
 	return prob != 0;
 }
 
-bool UART::Update(const int16_t signal, uint8_t *out, bool *err) {
-	int16_t h, l, symbol_prob;
+bool UART::Update(const int32_t signal, uint8_t *out, bool *err) {
+	int32_t h, l, symbol_prob;
 
 	this->bit.Update(signal, &h, &l);
 
@@ -171,7 +171,7 @@ uint32_t UART::ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_
 
 // InternalUpdate returns false if no new data is available.
 // InternalUpdate returns true if new data has been placed in out.
-bool UART::InternalUpdate(const int16_t symbol_prob, uint8_t *out, bool *err) {
+bool UART::InternalUpdate(const int32_t symbol_prob, uint8_t *out, bool *err) {
 	bool ret = false;
 
 	switch(this->state) {

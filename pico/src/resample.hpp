@@ -10,7 +10,7 @@ class Resample
 	// n == 0, no samples are dropped
 	// n == 1, 1/2 sample rate
 	// n == 2, 1/3 sample rate ...
-	Resample(const uint8_t samples) : counter(0), n(samples)
+	Resample(const size_t samples) : counter(0), n(samples)
 	{
 	}
 
@@ -30,6 +30,6 @@ class Resample
 	}
 
 	private:
-		uint8_t counter;
-		uint8_t n;
+		size_t counter;
+		size_t n;
 };

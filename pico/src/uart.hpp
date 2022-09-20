@@ -24,8 +24,8 @@ class UART
 
 	// InternalUpdate returns false if no new data is available.
 	// InternalUpdate returns true if new data has been placed in out.
-	bool InternalUpdate(const int16_t symbol_prob, uint8_t *out, bool *err);
-	bool Update(const int16_t signal, uint8_t *out, bool *err);
+	bool InternalUpdate(const int32_t symbol_prob, uint8_t *out, bool *err);
+	bool Update(const int32_t signal, uint8_t *out, bool *err);
 
 	private:
 
@@ -58,5 +58,5 @@ class UART
 		// Data storage for propability
 		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 10 + UART_OVERSAMPLING_RATE/2)> reg_parity;
 		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 9 + UART_OVERSAMPLING_RATE/2)> reg_no_parity;
-		UARTBit<int16_t, UART_OVERSAMPLING_RATE>  bit;
+		UARTBit<int32_t, UART_OVERSAMPLING_RATE>  bit;
 };
