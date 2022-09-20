@@ -13,6 +13,7 @@
 #include "line_busy.hpp"
 #include "channel_comp.hpp"
 #include "gain.hpp"
+#include "dcblock.hpp"
 
 //
 // Global signal processing blocks
@@ -51,6 +52,11 @@ __scratch_x("Resample") Resample<int32_t> resampler(1);
 // circuit on the receiver side. This reduces the overshoot in the idle phase.
 __scratch_x("ChannelComp") ChannelComp comp;
 
+// dcblock removes the DC level by using about 200 samples. DC offsets can
+// appear when the used resistors have a high tolerance and don't properly
+// match each others value.
+__scratch_x("DCblock") DCblock dcblock;
+
 // gain adjust the signal amplitude to 2*P1/P2 bus high level = 2.8V.
 // For transmitters driving higher voltage pulses on the bus, this also
 // improves bus idle detection by lowering the overshoot after a "high"
@@ -88,7 +94,7 @@ struct csv {
 int main(void) {
 	uint8_t rx_data;
 	bool rx_error;
-	int32_t adc_data, fir_data, resamp_data, compensated_data, gain_data;
+	int32_t adc_data, fir_data, resamp_data, compensated_data, gain_data, ac_data;
 	//struct csv samples[2048];
 	int i = 0, j = 0;
 	Message rx;
@@ -133,6 +139,10 @@ int main(void) {
 		if (!resampler.Update(fir_data, &resamp_data)) {
 			continue;
 		}
+		if (!dcblock.Update(resamp_data, &ac_data)) {
+			continue;
+		}
+
 		//if (!comp.Update(resamp_data, &compensated_data)) {
 		//	continue;
 		//}
@@ -161,7 +171,7 @@ int main(void) {
 		}
 #endif
 		rx_data = 0;
-		if (!p1p2uart.Update(resamp_data, &rx_data, &rx_error)) {
+		if (!p1p2uart.Update(ac_data, &rx_data, &rx_error)) {
 			continue;
 		}
 		if (!rx_error) {
