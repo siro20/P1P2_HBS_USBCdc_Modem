@@ -17,48 +17,57 @@
 ; This could be done in software as well, but requires CPU overhead that can be avoided,
 ; by this hardware only solution.
 
+; Latency best case 29, worst case 36 cycles
+; 
 entry:
+	; x = 7
 	set x, 7
+	; Get data from output FIFO
 	pull block
-next_0: ; 5 instructions per bit
+next_0: ; 4 instructions per bit, +1/+2 on last bit
 	; Get one bit from OSR
 	out y, 1
-
 	; Shift into ISR
 	in y, 1
-	jmp x-- dec_x
-dec_x:
-	jmp !x done_null ; The only case where this is reached is encoding 0
-	jmp !y next_0
-	jmp next_invert
-
-done_null:
-	set y, 0
+	; x--
+	jmp x-- not_done_yet
+	; At this point all bits have been shifted in
+	; x = 0xff due to previous decrement
+	; if (y > 0) jmp done
+	jmp y-- done
+	; x = 0
+	set x, 0
+	; jmp done
 	jmp done
+not_done_yet:
+	; if (y == 0) jmp next_0; else next_invert
+	jmp !y next_0
 
-next_invert: ; 4 instructions per bit
+	; invert remaining bits
+	mov osr, ~osr
+next_invert: ; 3 instructions per bit, +1 on last bit
 	; Get one bit from OSR
 	out y, 1
-	; invert
-	mov y, ~y
 	; Shift into ISR
 	in y, 1
+	; if (x--) jmp next_invert
 	jmp x-- next_invert
-done_invert:
-	set y, 31
+	; x = 0xff due to previous decrement
 done:
 	; push high byte
-	in y, 4
-	in y, 4
+	in x, 8
 
+	; shift in 16 0s
 	in null, 16
+	; Push to input FIFO
 	push block
 
 	; Get second byte and don't do any modification
-	pull block
-	out y, 8
-	in y, 8
-	in null, 24
+	; Latency 33 cycles
+	pull block   [7]
+	out y, 8     [7]
+	in y, 8      [7]
+	in null, 24  [7]
 	push block
 
 	jmp entry
