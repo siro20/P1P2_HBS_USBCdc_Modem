@@ -17,6 +17,7 @@
 #include "gain.hpp"
 #include "dcblock.hpp"
 #include "led_manager.hpp"
+#include "level_detect.hpp"
 
 //
 // Global signal processing blocks
@@ -62,10 +63,15 @@ __scratch_x("DCblock") DCblock dcblock;
 
 // p1p2uart decodes the P1P2 data signal to bytes. It can detect parity errors, frame
 // errors and DC errors ("0" not encoded as alternating up/down).
-UART p1p2uart(BUS_LOW_MV, UART::PARITY_EVEN);
+UART p1p2uart(BUS_HIGH_MV, UART::PARITY_EVEN);
 
 // busy gives an approximation if the line is currently in use.
 __scratch_x("Busy") LineBusy<16> busy(BUS_HIGH_MV*2/2);
+
+// Level applies the P1P2 bus hysteresis.
+// The low level signal amplitude is reduced to 0.1.
+// The high level signal amplitude is unchanged.
+__scratch_x("Level") Level<int32_t> level;
 
 // uart_tx implements the P1P2 transmitting part. The caller must avoid bus collisions on
 // the half duplex P1P2 bus. uart_tx has an internal 64 byte software fifo.
@@ -156,12 +162,12 @@ static void core1_entry() {
 	};
 }
 
+
 int main(void) {
 	uint8_t rx_data;
 	uint32_t fifo_data;
 	bool rx_error;
-	int32_t adc_data, fir_data, resamp_data, ac_data;
-
+	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data;
 	stdio_init_all();
 
 	multicore_launch_core1(core1_entry);
@@ -191,11 +197,13 @@ int main(void) {
 		if (!dcblock.Update(resamp_data, &ac_data)) {
 			continue;
 		}
-		// Detect line idle here for packet frame detection
-		//busy.Update(resamp_data);
-
+		if (!level.Update(ac_data, &hysteresis_data)) {
+			continue;
+		}
+		// Detect line-idle here for packet frame detection
+		//busy.Update(resamp_data)
 		rx_data = 0;
-		if (!p1p2uart.Update(ac_data, &rx_data, &rx_error)) {
+		if (!p1p2uart.Update(hysteresis_data, &rx_data, &rx_error)) {
 			continue;
 		}
 
