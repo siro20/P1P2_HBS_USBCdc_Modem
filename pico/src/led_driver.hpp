@@ -37,7 +37,19 @@ class LEDdriver
 		}
 
 		void Set(enum LEDState s) {
-			this->state = s;
+			if (this->state != s) {
+				if (s == LED_BLINK_SLOW) {
+					this->counter = 0;
+					this->Off();
+				} else if (s == LED_BLINK_FAST) {
+					this->Off();
+				} else if (s == LED_OFF) {
+					this->Off();
+				} else {
+					this->On();
+				}
+				this->state = s;
+			}
 		}
 
 	private:
