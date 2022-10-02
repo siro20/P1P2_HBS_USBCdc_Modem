@@ -29,16 +29,15 @@ static void irq_dma_handler(void) {
 	dadc.AckDMAIRQ();
 }
 
-void DifferentialADC::AckDMAIRQ(void) {
-	// restart DMA channel....
-	// Clear the interrupt request.
-	dma_channel_acknowledge_irq0(this->channel2);
+static void irq_pio_handler(void) {
+	
+	// This one wakes the CPU on WFE
+	irq_clear(PIO1_IRQ_0);
 }
 
-static void irq_adc_handler(void) {
-	// Nothing to do here. It just wakes the CPU...
-	// DMA handler should transfer the data and clear the interrupt
-	// TODO: race conditions???
+
+void DifferentialADC::AckDMAIRQ(void) {
+	this->Start();
 }
 
 // Configures ADC0 and ADC1 in round robin mode using DMA.
@@ -47,7 +46,7 @@ static void irq_adc_handler(void) {
 // Calculates the phase correct differential signal by delaying
 // the sampled data by one sample + a few CPU cycles used for the PIO.
 
-DifferentialADC::DifferentialADC(void) : data{},
+DifferentialADC::DifferentialADC(void) : data{0xff},
 	tc(0xffffffff), off(0), error(false), gain(0x100), pio(pio1), sm(0) {
 
 	adc_init();
@@ -79,10 +78,13 @@ DifferentialADC::DifferentialADC(void) : data{},
 	uint offset = pio_add_program(this->pio, &twos_complement_program);
 	twos_complement_program_init(this->pio, this->sm, offset);
 
-	{
-		// Get a free channel, panic() if there are none
-		this->channel2 = dma_claim_unused_channel(true);
 	
+	// Get a free channel, panic() if there are none
+	this->channel2 = dma_claim_unused_channel(true);
+	// Get a free channel, panic() if there are none
+	this->channel = dma_claim_unused_channel(true);
+
+	{
 		dma_channel_config c = dma_channel_get_default_config(this->channel2);
 		// 16 bit transfers
 		channel_config_set_transfer_data_size(&c, DMA_SIZE_16);
@@ -105,18 +107,14 @@ DifferentialADC::DifferentialADC(void) : data{},
 			true            // start immediately
 		);
 	}
-	
 	{
-		// Get a free channel, panic() if there are none
-		this->channel = dma_claim_unused_channel(true);
-
 		dma_channel_config c = dma_channel_get_default_config(this->channel);
 		// 8 bit transfers
 		channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
 		//  don't increment read and write address
 		channel_config_set_read_increment(&c, false);
 		channel_config_set_write_increment(&c, false);
-
+	
 		channel_config_set_high_priority(&c, true);
 
 		// Pace transfers based on availability of ADC samples
@@ -134,11 +132,8 @@ DifferentialADC::DifferentialADC(void) : data{},
 	irq_set_exclusive_handler(DMA_IRQ_0, irq_dma_handler);
 	irq_set_enabled(DMA_IRQ_0, true);
 
-	// This one wakes the CPU on WFE
-	irq_set_exclusive_handler(ADC_IRQ_FIFO, irq_adc_handler);
-	irq_set_enabled(ADC_IRQ_FIFO, true);
-
-	adc_irq_set_enabled(true);
+	// Prepare for IRQ support
+	twos_complement_prepare_irq0(this->pio, this->sm);
 }
 
 void DifferentialADC::Start(void) {
@@ -148,18 +143,23 @@ void DifferentialADC::Start(void) {
 	pio_sm_restart(this->pio, this->sm);
 	pio_sm_set_enabled(this->pio, this->sm, true);
 
+	this->tc = 0xffffffff;
+
 	dma_channel_set_trans_count(this->channel, this->tc, true);
 	dma_channel_set_trans_count(this->channel2, this->tc, true);
 
 	// Tell the DMA to raise IRQ line 0 when the channel finishes a block
 	dma_channel_set_irq0_enabled(this->channel2, true);
 
+	// This one wakes the CPU on WFE
+	twos_complement_enable_irq0(this->pio, this->sm);
 	adc_run(true);
 }
 
 void DifferentialADC::Stop(void) {
 	adc_run(false);
 	adc_fifo_drain();
+	twos_complement_disable_irq0(this->pio, this->sm);
 	dma_channel_set_irq0_enabled(this->channel2, false);
 	dma_channel_abort(this->channel);
 	dma_channel_abort(this->channel2);
