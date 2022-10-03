@@ -2,69 +2,232 @@
 #include <math.h>
 
 #include "uart_bit_detect_fast.hpp"
+#include "level_detect.hpp"
 
-TEST(UartBitDetect, TestRealWorld)
+#define LVL_HIGH 1400
+#define LVL_LOW 600
+
+TEST(UartBitDetect, TestRealWorldHigh)
 {
-	UARTBit<int16_t, 16> b;
-	int16_t data[256];
-	int16_t out_h[256];
-	int16_t out_l[256];
+	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	Level<int16_t> l;
 
-	memset(data, 0, sizeof(*data) * 256);
-	for (size_t i = 16; i < 24; i++) {
-		data[i] = 3300;
+	int16_t data[16];
+	int16_t out[16];
+
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 9; i++) {
+		data[i] = LVL_HIGH;
 	}
-	for (size_t i = 64; i < 72; i++) {
-		data[i] = -3300;
+	for (size_t i = 9; i < 17; i++) {
+		data[i] = LVL_LOW - 1;
 	}
-	for (size_t i = 0; i < 256; i++)
-		b.Update(data[i], &out_h[i], &out_l[i]);
+	
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
 
-	EXPECT_GT(out_h[30], 20000);
-	EXPECT_EQ(out_h[0], 0);
-	EXPECT_EQ(out_h[24+16], 0);
-	EXPECT_LT(out_l[30], -20000);
+	EXPECT_EQ(out[15], 6206);
 
-	EXPECT_GT(out_l[78], 20000);
-	EXPECT_EQ(out_l[0], 0);
-	EXPECT_EQ(out_l[72+16], 0);
-	EXPECT_LT(out_h[78], -20000);
+	for (size_t i = 9; i < 17; i++) {
+		data[i] = -LVL_LOW + 1;
+	}
+	
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	EXPECT_EQ(out[15], 6206);
+}
+
+TEST(UartBitDetect, TestRealWorldLow)
+{
+	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	Level<int16_t> l;
+
+	int16_t data[16];
+	int16_t out[16];
+
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 9; i++) {
+		data[i] = -LVL_HIGH;
+	}
+	for (size_t i = 9; i < 17; i++) {
+		data[i] = -LVL_LOW + 1;
+	}
+	
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	EXPECT_EQ(out[15], -6206);
+
+	for (size_t i = 9; i < 17; i++) {
+		data[i] = LVL_LOW - 1;
+	}
+	
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	EXPECT_EQ(out[15], -6206);
 }
 
 TEST(UartBitDetect, High)
 {
-	UARTBit<int16_t, 16> b;
+	UARTBit<int16_t, 16> b(1, 0, 0xff);
 	int16_t data[16];
-	int16_t out_h[16];
-	int16_t out_l[16];
+	int16_t out[16];
 
+	// Test high phase 8 samples long
 	memset(data, 0, sizeof(*data) * 16);
-	for (size_t i = 0; i < 8; i++) {
+	for (size_t i = 1; i < 9; i++) {
 		data[i] = 1;
 	}
 	for (size_t i = 0; i < 16; i++) {
-		b.Update(data[i], &out_h[i], &out_l[i]);
+		b.Update(data[i], &out[i]);
 	}
 
-	EXPECT_EQ(out_h[14], 8);
-	EXPECT_EQ(out_l[14], -8);
+	EXPECT_EQ(out[15], 7);
+
+	// Test high phase 7 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 8; i++) {
+		data[i] = 1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	EXPECT_EQ(out[15], 7);
+
+	// Test high phase 6 samples long
+	// Detects as line idle as bit error is 0xff == 0%
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 7; i++) {
+		data[i] = 1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	EXPECT_EQ(out[15], 0);
 }
 
 TEST(UartBitDetect, Low)
 {
-	UARTBit<int16_t, 16> b;
+	UARTBit<int16_t, 16> b(1, 0, 0xff);
 	int16_t data[16];
-	int16_t out_h[16];
-	int16_t out_l[16];
+	int16_t out[16];
 
+	// Test low phase 8 samples long
 	memset(data, 0, sizeof(*data) * 16);
-	for (size_t i = 0; i < 8; i++) {
+	for (size_t i = 1; i < 9; i++) {
 		data[i] = -1;
 	}
 	for (size_t i = 0; i < 16; i++) {
-		b.Update(data[i], &out_h[i], &out_l[i]);
+		b.Update(data[i], &out[i]);
 	}
 
-	EXPECT_EQ(out_h[14], -8);
-	EXPECT_EQ(out_l[14], 8);
+	EXPECT_EQ(out[15], -7);
+
+	// Test low phase 7 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 8; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+
+	// Test low phase 6 samples long
+	// Detects as line idle as bit error is 0xff == 0%
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 7; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], 0);
+}
+
+
+TEST(UartBitDetect, BitError)
+{
+	UARTBit<int16_t, 16> b(1, 0, 0x80);
+	int16_t data[16];
+	int16_t out[16];
+
+	// Test low phase 6 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 7; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], -6);
+
+	// Test low phase 5 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 6; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], -5);
+
+	// Test low phase 4 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 5; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], -4);
+	
+	// Test low phase 3 samples long
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 4; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], -3);
+
+	// Test low phase 2 samples long
+	// Detects as line idle as bit error is 0x80 == 50%
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 1; i < 3; i++) {
+		data[i] = -1;
+	}
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
+	EXPECT_EQ(out[15], 0);
+}
+
+TEST(UartBitDetect, DCLevel)
+{
+	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	int16_t data[16];
+	int16_t out[16];
+
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 0; i < 16; i++) {
+		data[i] = LVL_HIGH;
+	}
+
+	EXPECT_EQ(out[14], 0);
+
+	memset(data, 0, sizeof(*data) * 16);
+	for (size_t i = 0; i < 16; i++) {
+		data[i] = -LVL_HIGH;
+	}
+
+	EXPECT_EQ(out[14], 0);
 }

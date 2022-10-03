@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
 #include "uart.hpp"
+#include "level_detect.hpp"
 
 #define OVERSAMPLING 16
 
 // Captured waveform from hardware
 static int16_t testdata[] = {
+0,
 3000,
 3000,
 3000,
@@ -745,6 +747,8 @@ static void genTestData(uint8_t b, enum UART::UART_PARITY p, int16_t data[OVERSA
 		}
 		toggle *= -1;
 	}
+
+	//std::cout << "testdata:" << std::endl;
 	//for (size_t i = 0; i < OVERSAMPLING * 13; i++) {
 	//	std::cout << data[i] << " ";
 	//}
@@ -753,7 +757,7 @@ static void genTestData(uint8_t b, enum UART::UART_PARITY p, int16_t data[OVERSA
 
 TEST(UART, TestDecodeParityNone)
 {
-	UART u(3300/2, UART::PARITY_NONE);
+	UART u(UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -783,7 +787,7 @@ TEST(UART, TestDecodeParityNone)
 
 TEST(UART, TestFramingError)
 {
-	UART u(3300/2, UART::PARITY_NONE);
+	UART u(UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -811,7 +815,7 @@ TEST(UART, TestFramingError)
 
 TEST(UART, TestPolarityError)
 {
-	UART u(3300/2, UART::PARITY_EVEN);
+	UART u(UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -839,7 +843,7 @@ TEST(UART, TestPolarityError)
 
 TEST(UART, TestDecodeParityEven)
 {
-	UART u(3300/2, UART::PARITY_EVEN);
+	UART u(UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -885,7 +889,7 @@ TEST(UART, TestDecodeParityEven)
 
 TEST(UART, TestDecodeParityOdd)
 {
-	UART u(3300/2, UART::PARITY_ODD);
+	UART u(UART::PARITY_ODD);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -933,7 +937,7 @@ TEST(UART, TestDecodeParityOdd)
 
 TEST(UART, TestPulseNoise)
 {
-	UART u(3300/2, UART::PARITY_ODD);
+	UART u(UART::PARITY_ODD);
 
 	uint8_t out;
 	bool err;
@@ -978,8 +982,9 @@ TEST(UART, TestPulseNoise)
 
 TEST(UART, TestCapturedTestData)
 {
-	UART u(1400, UART::PARITY_EVEN);
-
+	UART u(UART::PARITY_EVEN);
+	Level<int32_t> l;
+	int32_t signal;
 	uint8_t out;
 	bool err;
 	int count = 0;
@@ -987,7 +992,8 @@ TEST(UART, TestCapturedTestData)
 	for (size_t i = 0; i < sizeof(testdata)/sizeof(testdata[0]); i++) {
 		out = 0xff;
 		err = false;
-		if (u.Update(testdata[i], &out, &err)) {
+		l.Update(testdata[i], &signal);
+		if (u.Update(signal, &out, &err)) {
 
 			EXPECT_EQ(count, out);
 			if (err)

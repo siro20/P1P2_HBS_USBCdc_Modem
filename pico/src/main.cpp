@@ -63,7 +63,7 @@ __scratch_x("DCblock") DCblock dcblock;
 
 // p1p2uart decodes the P1P2 data signal to bytes. It can detect parity errors, frame
 // errors and DC errors ("0" not encoded as alternating up/down).
-UART p1p2uart(BUS_HIGH_MV, UART::PARITY_EVEN);
+UART p1p2uart(UART::PARITY_EVEN);
 
 // busy gives an approximation if the line is currently in use.
 __scratch_x("Busy") LineBusy<16> busy(BUS_HIGH_MV*2/2);

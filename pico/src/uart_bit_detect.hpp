@@ -7,15 +7,15 @@
 #define OVERSAMPLING 16
 
 static const int8_t uart_detect_abs[OVERSAMPLING] = {
-    -1, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, -1
+    -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1
 };
 
 static const int8_t uart_detect_high[OVERSAMPLING] = {
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0
+    0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static const int8_t uart_detect_low[OVERSAMPLING] = {
-    0, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0
+    0, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 class UARTBit
