@@ -175,9 +175,8 @@ int main(void) {
 	DADCErr = false;
 	FifoErr = false;
 
-	dadc.SetGain((uint16_t)(1.51 * 0x100));
+	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
 	dadc.Start();
-
 	for (;;) {	
 		if(!dadc.Update(&adc_data)) {
 			__wfe();

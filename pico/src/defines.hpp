@@ -15,5 +15,6 @@
 #define BUS_LOW_MV 600
 
 // ADC settings
-#define ADC_REF_VOLTAGE_MV 3300
+#define ADC_REF_VOLTAGE_MV 3000
 #define ADC_DMA_BUFFER_SIZE 256
+#define ADC_EXTERNAL_GAIN 1.666
