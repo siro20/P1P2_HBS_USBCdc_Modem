@@ -2,6 +2,7 @@
 
 #include "uart.hpp"
 #include "level_detect.hpp"
+#include "uart_bit_detect_fast.hpp"
 
 #define OVERSAMPLING 16
 
@@ -757,12 +758,16 @@ static void genTestData(uint8_t b, enum UART::UART_PARITY p, int16_t data[OVERSA
 
 TEST(UART, TestDecodeParityNone)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> bit(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
 	int uart_active;
+	int32_t signal;
 
 	for (uint16_t testbyte = 0; testbyte <= 0xff; testbyte++) {
 		genTestData(testbyte, UART::PARITY_NONE, p);
@@ -771,7 +776,8 @@ TEST(UART, TestDecodeParityNone)
 		for (size_t i = 0; i < OVERSAMPLING * 13; i++) {	
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 			if (u.Receiving())
@@ -787,11 +793,13 @@ TEST(UART, TestDecodeParityNone)
 
 TEST(UART, TestFramingError)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
+	int32_t signal;
 
 	for (uint16_t testbyte = 0; testbyte <= 0xff; testbyte++) {
 		genTestData(testbyte, UART::PARITY_NONE, p);
@@ -803,7 +811,8 @@ TEST(UART, TestFramingError)
 		for (size_t i = 0; i < OVERSAMPLING * 13; i++) {	
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 		}
@@ -815,11 +824,13 @@ TEST(UART, TestFramingError)
 
 TEST(UART, TestPolarityError)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
+	int32_t signal;
 
 	for (uint16_t testbyte = 0; testbyte <= 0xff; testbyte++) {
 		genTestData(testbyte, UART::PARITY_EVEN, p);
@@ -831,7 +842,8 @@ TEST(UART, TestPolarityError)
 		for (size_t i = 0; i < OVERSAMPLING * 13; i++) {	
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 		}
@@ -843,12 +855,14 @@ TEST(UART, TestPolarityError)
 
 TEST(UART, TestDecodeParityEven)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
 	int uart_active;
+	int32_t signal;
 
 	// Test all bytes with correct parity
 	for (uint16_t testbyte = 0; testbyte <= 0xff; testbyte++) {
@@ -858,7 +872,8 @@ TEST(UART, TestDecodeParityEven)
 		for (size_t i = 0; i < OVERSAMPLING * 13; i++) {	
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 			if (u.Receiving())
@@ -889,12 +904,14 @@ TEST(UART, TestDecodeParityEven)
 
 TEST(UART, TestDecodeParityOdd)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_ODD);
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
 	int uart_active;
+	int32_t signal;
 
 	// Test all bytes with correct parity
 	for (uint16_t testbyte = 0; testbyte <= 0xff; testbyte++) {
@@ -905,7 +922,8 @@ TEST(UART, TestDecodeParityOdd)
 	
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 			if (u.Receiving())
@@ -937,12 +955,13 @@ TEST(UART, TestDecodeParityOdd)
 
 TEST(UART, TestPulseNoise)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_ODD);
-
 	uint8_t out;
 	bool err;
 	bool done;
 	int16_t p[OVERSAMPLING * 13];
+	int32_t signal;
 
 	for (int16_t noise = 0; noise < OVERSAMPLING * 13; noise++) {
 		genTestData(0xcc, UART::PARITY_ODD, p);
@@ -953,7 +972,8 @@ TEST(UART, TestPulseNoise)
 		for (size_t i = 0; i < OVERSAMPLING * 13; i++) {
 			out = 0;
 			err = false;
-			done = u.Update(p[i], &out, &err);
+			b.Update(p[i], &signal);
+			done = u.Update(signal, &out, &err);
 			if (done)
 				break;
 		}
@@ -982,6 +1002,7 @@ TEST(UART, TestPulseNoise)
 
 TEST(UART, TestCapturedTestData)
 {
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 	UART u(UART::PARITY_EVEN);
 	Level<int32_t> l;
 	int32_t signal;
@@ -993,6 +1014,7 @@ TEST(UART, TestCapturedTestData)
 		out = 0xff;
 		err = false;
 		l.Update(testdata[i], &signal);
+		b.Update(signal, &signal);
 		if (u.Update(signal, &out, &err)) {
 
 			EXPECT_EQ(count, out);

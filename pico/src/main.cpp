@@ -18,6 +18,7 @@
 #include "dcblock.hpp"
 #include "led_manager.hpp"
 #include "level_detect.hpp"
+#include "uart_bit_detect_fast.hpp"
 
 //
 // Global signal processing blocks
@@ -72,6 +73,10 @@ __scratch_x("Busy") LineBusy<16> busy(BUS_HIGH_MV*2/2);
 // The low level signal amplitude is reduced to 0.1.
 // The high level signal amplitude is unchanged.
 __scratch_x("Level") Level<int32_t> level;
+
+// bit returns the probabilty for a high or low pulse found in the signal.
+// Allow 0xE0/0x100 bit errors = 12,5%
+UARTBit<int32_t, UART_OVERSAMPLING_RATE> bit(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 
 // uart_tx implements the P1P2 transmitting part. The caller must avoid bus collisions on
 // the half duplex P1P2 bus. uart_tx has an internal 64 byte software fifo.
@@ -167,7 +172,8 @@ int main(void) {
 	uint8_t rx_data;
 	uint32_t fifo_data;
 	bool rx_error;
-	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data;
+	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data, bit_data;
+
 	stdio_init_all();
 
 	multicore_launch_core1(core1_entry);
@@ -199,10 +205,14 @@ int main(void) {
 		if (!level.Update(ac_data, &hysteresis_data)) {
 			continue;
 		}
+
 		// Detect line-idle here for packet frame detection
 		//busy.Update(resamp_data)
+
+		bit.Update(hysteresis_data, &bit_data);
+
 		rx_data = 0;
-		if (!p1p2uart.Update(hysteresis_data, &rx_data, &rx_error)) {
+		if (!p1p2uart.Update(bit_data, &rx_data, &rx_error)) {
 			continue;
 		}
 

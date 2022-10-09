@@ -11,8 +11,7 @@ UART::UART(enum UART_PARITY p) :
 	counter(0),
 	state(WAIT_FOR_IDLE),
 	reg_parity(),
-	reg_no_parity(),
-	bit(BUS_HIGH_MV, BUS_LOW_MV, 0xF0)
+	reg_no_parity()
 {
 }
 
@@ -23,14 +22,6 @@ bool UART::Receiving(void) {
 
 inline bool UART::ZeroLevelDetect(const int16_t prob) {
 	return prob != 0;
-}
-
-bool UART::Update(const int32_t signal, uint8_t *out, bool *err) {
-	int32_t symbol_prob = 0;
-
-	this->bit.Update(signal, &symbol_prob);
-
-	return this->InternalUpdate(symbol_prob, out, err);
 }
 
 bool UART::FindBestPhase(uint8_t *out, bool *err) {
@@ -167,9 +158,9 @@ uint32_t UART::ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_
 	return prob;
 }
 
-// InternalUpdate returns false if no new data is available.
-// InternalUpdate returns true if new data has been placed in out.
-bool UART::InternalUpdate(const int32_t symbol_prob, uint8_t *out, bool *err) {
+// Update returns false if no new data is available.
+// Update returns true if new data has been placed in out.
+bool UART::Update(const int32_t symbol_prob, uint8_t *out, bool *err) {
 	bool ret = false;
 
 	switch(this->state) {

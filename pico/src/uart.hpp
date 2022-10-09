@@ -1,5 +1,4 @@
 #include "uart_edge_detect.hpp"
-#include "uart_bit_detect_fast.hpp"
 
 #include "shiftreg.hpp"
 #include "defines.hpp"
@@ -22,10 +21,9 @@ class UART
 	// Receiving returns true as long as data is being received
 	bool Receiving(void);
 
-	// InternalUpdate returns false if no new data is available.
-	// InternalUpdate returns true if new data has been placed in out.
-	bool InternalUpdate(const int32_t symbol_prob, uint8_t *out, bool *err);
-	bool Update(const int32_t signal, uint8_t *out, bool *err);
+	// Update returns false if no new data is available.
+	// Update returns true if new data has been placed in out.
+	bool Update(const int32_t symbol_prob, uint8_t *out, bool *err);
 
 	private:
 
@@ -56,5 +54,4 @@ class UART
 		// Data storage for propability
 		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 10 + UART_OVERSAMPLING_RATE/2)> reg_parity;
 		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 9 + UART_OVERSAMPLING_RATE/2)> reg_no_parity;
-		UARTBit<int32_t, UART_OVERSAMPLING_RATE>  bit;
 };
