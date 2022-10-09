@@ -6,7 +6,8 @@ class LineBusy
 {
 	public:
 		LineBusy(const int32_t level) :
-		reg(),
+		buffer{0},
+		reg(buffer),
 		level(level)
 		{
 		}
@@ -29,6 +30,7 @@ class LineBusy
 		}
 
 	private:
+		int32_t buffer[N * 2];
 		ShiftReg<int32_t, N> reg;
 		int32_t level;
 };

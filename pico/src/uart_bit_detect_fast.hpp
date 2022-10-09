@@ -8,7 +8,11 @@ class UARTBit
   public:
     // Implements a faster version of uart_bit_detect.
     // Trades memory for CPU performance.
-    UARTBit(const uint32_t high_level, const uint32_t low_level, const uint8_t error_rate);
+    UARTBit(T buffer[N * 2],
+	    T buffer_abs[N * 2],
+	    const uint32_t high_level,
+	    const uint32_t low_level,
+	    const uint8_t error_rate);
 
     // Update returns false if no new data is available.
     // Update returns true if new data has been placed in out.
@@ -21,8 +25,8 @@ class UARTBit
     // Shifts in new data.
     inline void ShiftIn(const T in);
 
-    T data[N * 2];
-    T data_abs[N * 2];
+    T *data;
+    T *data_abs;
     int32_t receiver_level;
     uint32_t off;
 };

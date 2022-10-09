@@ -4,12 +4,14 @@
 
 using namespace std;
 
+#define ADC_BUFFER_LEN 0x100
+
 class DifferentialADC
 {
 	public:
-		static DifferentialADC& getInstance(void)
+		static DifferentialADC& getInstance(int16_t data_ptr[ADC_BUFFER_LEN])
 		{
-			__scratch_x("ADCInstance") static DifferentialADC instance;
+			static DifferentialADC instance(data_ptr);
 			return instance;
 		}
 		~DifferentialADC(void);
@@ -27,10 +29,10 @@ class DifferentialADC
 
 		void AckDMAIRQ(void);
 	private:
-		DifferentialADC(void);
+		DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]);
 
 		/* ADC sample buffer */
-		int16_t data[0x100] __attribute__ ((aligned(0x200)));
+		int16_t *data;
 
 		uint32_t tc;
 	

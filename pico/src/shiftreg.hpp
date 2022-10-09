@@ -15,14 +15,19 @@ class ShiftReg
     // This allows to return a pointer to a linear buffer with zero copy.
     // By pushing a new value into the shift register the oldest value is poped
     // If init is NULL the register will be zero'd, else the contents are initialized.
-    ShiftReg(const T *init) :  data{}, off(0) {
+    ShiftReg(T buffer[N * 2], const T *init) :  data(buffer), off(0) {
         assert(init != nullptr);
+        assert(buffer != nullptr);
 
-        for (size_t i = 0; i < N; i++)
+        for (size_t i = 0; i < N; i++) {
             this->data[i] = init[i];
+            this->data[i + N] = init[i];
+        }
     }
 
-    ShiftReg() : data{}, off(0) {
+    ShiftReg(T buffer[N * 2]) : data(buffer), off(0) {
+        assert(buffer != nullptr);
+        memset(buffer, 0, sizeof(T) * N * 2);
     }
     // Update returns false if no new data is available.
     // Update returns true if new data has been placed in out.
@@ -74,7 +79,7 @@ class ShiftReg
     inline T* Data() {
         // Get offset into circular buffer
         // As it has twice the specified size it never overflows
-	// and doesn't need to wrap around.
+        // and doesn't need to wrap around.
         return &this->data[this->off];
     }
 
@@ -89,8 +94,8 @@ class ShiftReg
     {
         uint32_t min, i;
         int32_t result = 0;
-	A *ptr_a = a.Data();
-	B *ptr_b = b.Data();
+        A *ptr_a = a.Data();
+        B *ptr_b = b.Data();
 
         min = (a.Length() < b.Length()) ? a.Length() : b.Length();
 
@@ -101,6 +106,6 @@ class ShiftReg
     }
 
   private:
-    T data[N * 2];
+    T *data;
     uint32_t off;
 };

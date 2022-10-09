@@ -5,7 +5,7 @@
 class FIRFilter
 {
 	public:
-		FIRFilter(void);
+		FIRFilter(int32_t buffer_a[7 * 2], int32_t buffer_b[7 * 2]);
 
 		bool Update(const int32_t in, int32_t *out);
 

@@ -29,25 +29,28 @@
 // signal is delayed by 2 ADC samples to emulate a phase correct differential
 // capture.
 // Provides an 16x oversampled signal.
-__scratch_x("ADC") DifferentialADC& dadc = DifferentialADC::getInstance();
+__scratch_x("ADCInstance") int16_t adc_data[0x100] __attribute__ ((aligned(0x200)));
+DifferentialADC& dadc = DifferentialADC::getInstance(adc_data);
 
 // filter implements a FIR filter to reduce high frequency noise
 // captured by the ADC. As the FIR filter is processing intense,
 // the length was set to 7.
 // Introduces a delay of about 4 ADC samples.
-__scratch_x("FIRFilter") FIRFilter filter;
+__scratch_x("FIRFilter1") int32_t fir_data1[7 * 2];
+__scratch_x("FIRFilter2") int32_t fir_data2[7 * 2];
+FIRFilter filter(fir_data1, fir_data2);
 
 #if (FIR_OVERSAMPLING_RATE / UART_OVERSAMPLING_RATE) == 4
 // resampler drops 3 samples out of 4 as it's not needed any more after
 // FIR filtering the signal.
 // Provides an 8x oversampled signal.
-__scratch_x("Resample") Resample<int32_t> resampler(3);
+Resample<int32_t> resampler(3);
 #else
 #if (FIR_OVERSAMPLING_RATE / UART_OVERSAMPLING_RATE) == 2
 // resampler drops 1 samples out of 2 as it's not needed any more after
 // FIR filtering the signal.
 // Provides an 8x oversampled signal.
-__scratch_x("Resample") Resample<int32_t> resampler(1);
+Resample<int32_t> resampler(1);
 #else
 #error Unsupported FIR_OVERSAMPLING_RATE to UART_OVERSAMPLING_RATE ratio!
 #endif
@@ -55,28 +58,31 @@ __scratch_x("Resample") Resample<int32_t> resampler(1);
 
 // comp reduces the distortions introduced by the AC coupling and bias
 // circuit on the receiver side. This reduces the overshoot in the idle phase.
-__scratch_x("ChannelComp") ChannelComp comp;
+ChannelComp comp;
 
 // dcblock removes the DC level by using about 200 samples. DC offsets can
 // appear when the used resistors have a high tolerance and don't properly
 // match each others value.
-__scratch_x("DCblock") DCblock dcblock;
+DCblock dcblock;
 
 // p1p2uart decodes the P1P2 data signal to bytes. It can detect parity errors, frame
 // errors and DC errors ("0" not encoded as alternating up/down).
-UART p1p2uart(UART::PARITY_EVEN);
+__scratch_x("UART") int16_t uart_data[UART_BUFFER_LEN * 2];
+UART p1p2uart(uart_data, UART::PARITY_EVEN);
 
 // busy gives an approximation if the line is currently in use.
-__scratch_x("Busy") LineBusy<16> busy(BUS_HIGH_MV*2/2);
+LineBusy<16> busy(BUS_HIGH_MV*2/2);
 
 // Level applies the P1P2 bus hysteresis.
 // The low level signal amplitude is reduced to 0.1.
 // The high level signal amplitude is unchanged.
-__scratch_x("Level") Level<int32_t> level;
+Level<int32_t> level;
 
 // bit returns the probabilty for a high or low pulse found in the signal.
 // Allow 0xE0/0x100 bit errors = 12,5%
-UARTBit<int32_t, UART_OVERSAMPLING_RATE> bit(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+__scratch_x("UARTBit1") int32_t uart_bit_data[UART_OVERSAMPLING_RATE * 2];
+__scratch_x("UARTBit2") int32_t uart_bit_data2[UART_OVERSAMPLING_RATE * 2];
+UARTBit<int32_t, UART_OVERSAMPLING_RATE> bit(uart_bit_data, uart_bit_data2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
 
 // uart_tx implements the P1P2 transmitting part. The caller must avoid bus collisions on
 // the half duplex P1P2 bus. uart_tx has an internal 64 byte software fifo.
@@ -143,8 +149,9 @@ static void core1_entry() {
 				LedManager.TransmissionErrorRx();
 				printf("c ");
 
+			} else {
+			//	printf("%02x ", data & 0xff);
 			}
-			//printf("%02x ", data & 0xff);
 		}
 		if (uart_tx.Transmitting()) {
 			LedManager.ActivityTx();
@@ -183,7 +190,7 @@ int main(void) {
 
 	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
 	dadc.Start();
-	for (;;) {	
+	for (;;) {
 		if(!dadc.Update(&adc_data)) {
 			__wfe();
 			continue;
@@ -193,6 +200,7 @@ int main(void) {
 			dadc.Reset();
 			continue;
 		}
+
 		if (!filter.Update(adc_data, &fir_data)) {
 			continue;
 		}
@@ -217,8 +225,9 @@ int main(void) {
 		}
 
 		fifo_data = rx_data;
-		if (rx_error)
+		if (rx_error) {
 			fifo_data |= 1 << 8;
+		}
 
 		if (!multicore_fifo_wready()) {
 			FifoErr = true;

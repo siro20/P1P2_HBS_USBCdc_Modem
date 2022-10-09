@@ -13,7 +13,9 @@ static float SignalRMS(int32_t *signal, size_t len)
 
 TEST(FIRfilter, Filter)
 {
-	FIRFilter f;
+	int32_t buf_a[7 * 2];
+	int32_t buf_b[7 * 2];
+	FIRFilter f(buf_a, buf_b);
 	int32_t data[256];
 	int32_t out[256];
 
@@ -32,7 +34,9 @@ TEST(FIRfilter, Filter)
 
 TEST(FIRfilter, Plot)
 {
-	FIRFilter f;
+	int32_t buf_a[7 * 2];
+	int32_t buf_b[7 * 2];
+	FIRFilter f(buf_a, buf_b);
 	int32_t data[256];
 	int32_t out[256];
 

@@ -14,10 +14,18 @@ static const int32_t coefficients[] = {
 	0.304697734025869138 * 0x7fff,
 	0.055470186813273988 * 0x7fff,
 	-0.071383729317764918 * 0x7fff,
+
+	-0.071383729317764918 * 0x7fff,
+	0.055470186813273974 * 0x7fff,
+	0.304697734025869083 * 0x7fff,
+	0.436830215005959033 * 0x7fff,
+	0.304697734025869138 * 0x7fff,
+	0.055470186813273988 * 0x7fff,
+	-0.071383729317764918 * 0x7fff,
 };
 
-FIRFilter::FIRFilter(void) :
-reg(), coeff(coefficients)
+FIRFilter::FIRFilter(int32_t buffer_a[7 * 2], int32_t buffer_b[7 * 2]) :
+reg(buffer_a), coeff(buffer_b, coefficients)
 {
 }
 

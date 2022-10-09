@@ -6,11 +6,11 @@
 // Level sets the line level for a "high" or "low" symbol
 // p is the parity.
 // For P1P2 bus this must be 'PARITY_EVEN' to make sure the signal has a zero DC level.
-UART::UART(enum UART_PARITY p) :
+UART::UART(int16_t buffer[UART_BUFFER_LEN * 2], enum UART_PARITY p) :
 	parity(p),
 	counter(0),
 	state(WAIT_FOR_IDLE),
-	reg()
+	reg(buffer)
 {
 }
 

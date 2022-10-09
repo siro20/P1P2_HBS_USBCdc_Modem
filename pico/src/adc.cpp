@@ -24,7 +24,7 @@ void DifferentialADC::SetGain(uint16_t gain) {
 }
 
 static void irq_dma_handler(void) {
-	DifferentialADC& dadc = DifferentialADC::getInstance();
+	DifferentialADC& dadc = DifferentialADC::getInstance(NULL);
 
 	dadc.AckDMAIRQ();
 }
@@ -46,7 +46,7 @@ void DifferentialADC::AckDMAIRQ(void) {
 // Calculates the phase correct differential signal by delaying
 // the sampled data by one sample + a few CPU cycles used for the PIO.
 
-DifferentialADC::DifferentialADC(void) : data{0xff},
+DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_ptr),
 	tc(0xffffffff), off(0), error(false), gain(0x100), pio(pio1), sm(0) {
 
 	adc_init();

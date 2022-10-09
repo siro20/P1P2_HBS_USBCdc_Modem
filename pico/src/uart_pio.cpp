@@ -26,7 +26,8 @@ UARTPio::UARTPio() : pio(pio0), sm(0)
 	irq_set_enabled(PIO0_IRQ_0, true);
 
 	// Disable TX FIFO not full interrupt until data is placed in SW FIFO
-	pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, false);
+	pio_set_irq0_source_enabled(this->pio,
+		(enum pio_interrupt_source)(pis_sm0_tx_fifo_not_full + this->sm), false);
 
 	gpio_init(UARTPio::PIN_SHUTDOWN);
 	gpio_set_dir(UARTPio::PIN_SHUTDOWN, true);

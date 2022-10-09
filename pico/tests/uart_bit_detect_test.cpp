@@ -9,7 +9,9 @@
 
 TEST(UartBitDetect, TestRealWorldHigh)
 {
-	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, LVL_HIGH, LVL_LOW, 0xe0);
 	Level<int16_t> l;
 
 	int16_t data[16];
@@ -42,7 +44,9 @@ TEST(UartBitDetect, TestRealWorldHigh)
 
 TEST(UartBitDetect, TestRealWorldLow)
 {
-	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, LVL_HIGH, LVL_LOW, 0xe0);
 	Level<int16_t> l;
 
 	int16_t data[16];
@@ -75,7 +79,9 @@ TEST(UartBitDetect, TestRealWorldLow)
 
 TEST(UartBitDetect, High)
 {
-	UARTBit<int16_t, 16> b(1, 0, 0xff);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, 1, 0, 0xff);
 	int16_t data[16];
 	int16_t out[16];
 
@@ -116,7 +122,9 @@ TEST(UartBitDetect, High)
 
 TEST(UartBitDetect, Low)
 {
-	UARTBit<int16_t, 16> b(1, 0, 0xff);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, 1, 0, 0xff);
 	int16_t data[16];
 	int16_t out[16];
 
@@ -155,7 +163,9 @@ TEST(UartBitDetect, Low)
 
 TEST(UartBitDetect, BitError)
 {
-	UARTBit<int16_t, 16> b(1, 0, 0x80);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, 1, 0, 0x80);
 	int16_t data[16];
 	int16_t out[16];
 
@@ -213,7 +223,9 @@ TEST(UartBitDetect, BitError)
 
 TEST(UartBitDetect, DCLevel)
 {
-	UARTBit<int16_t, 16> b(LVL_HIGH, LVL_LOW, 0xe0);
+	int16_t buf_a[16 * 2];
+	int16_t buf_b[16 * 2];
+	UARTBit<int16_t, 16> b(buf_a, buf_b, LVL_HIGH, LVL_LOW, 0xe0);
 	int16_t data[16];
 	int16_t out[16];
 

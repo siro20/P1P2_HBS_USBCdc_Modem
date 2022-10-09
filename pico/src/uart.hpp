@@ -20,7 +20,7 @@ class UART
 	// Level sets the line level for a "high" or "low" symbol
 	// p is the parity.
 	// For P1P2 bus this must be 'PARITY_EVEN' to make sure the signal has a zero DC level.
-	UART(enum UART_PARITY p);
+	UART(int16_t buffer[UART_BUFFER_LEN * 2], enum UART_PARITY p);
 
 	// Receiving returns true as long as data is being received
 	bool Receiving(void);

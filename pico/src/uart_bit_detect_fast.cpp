@@ -2,11 +2,18 @@
 #include <assert.h>
 #include "uart_bit_detect_fast.hpp"
 #include <iostream>
-// reverse?
+#include <cstring>
 
 template <class T, size_t N>
-UARTBit<T, N>::UARTBit(const uint32_t high_level, const uint32_t low_level, const uint8_t error_rate) :
-	data{}, data_abs{}, receiver_level(0), off(0) {
+UARTBit<T, N>::UARTBit(T buffer[N * 2],
+		       T buffer_abs[N * 2],
+		       const uint32_t high_level,
+		       const uint32_t low_level,
+		       const uint8_t error_rate) :
+	data(buffer), data_abs(buffer_abs), receiver_level(0), off(0) {
+	memset(data, 0, sizeof(T) * N * 2);
+	memset(data_abs, 0, sizeof(T) * N * 2);
+
 	/* Calculate receiver level */
 	this->receiver_level = (N/2 - 1) * high_level;
 	this->receiver_level -= (N/2 - 1) * low_level;

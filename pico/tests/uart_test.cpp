@@ -758,10 +758,11 @@ static void genTestData(uint8_t b, enum UART::UART_PARITY p, int16_t data[OVERSA
 
 TEST(UART, TestDecodeParityNone)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> bit(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_NONE);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -793,8 +794,11 @@ TEST(UART, TestDecodeParityNone)
 
 TEST(UART, TestFramingError)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_NONE);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_NONE);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -824,8 +828,11 @@ TEST(UART, TestFramingError)
 
 TEST(UART, TestPolarityError)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_EVEN);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -855,8 +862,11 @@ TEST(UART, TestPolarityError)
 
 TEST(UART, TestDecodeParityEven)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_EVEN);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_EVEN);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -904,8 +914,11 @@ TEST(UART, TestDecodeParityEven)
 
 TEST(UART, TestDecodeParityOdd)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_ODD);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_ODD);
 	uint8_t out;
 	bool err;
 	bool done;
@@ -955,8 +968,12 @@ TEST(UART, TestDecodeParityOdd)
 
 TEST(UART, TestPulseNoise)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_ODD);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_ODD);
+
 	uint8_t out;
 	bool err;
 	bool done;
@@ -1002,8 +1019,11 @@ TEST(UART, TestPulseNoise)
 
 TEST(UART, TestCapturedTestData)
 {
-	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
-	UART u(UART::PARITY_EVEN);
+	int32_t buf_uart_bit1[UART_OVERSAMPLING_RATE * 2];
+	int32_t buf_uart_bit2[UART_OVERSAMPLING_RATE * 2];
+	UARTBit<int32_t, UART_OVERSAMPLING_RATE> b(buf_uart_bit1, buf_uart_bit2, BUS_HIGH_MV, BUS_LOW_MV, 0xE0);
+	int16_t buf[UART_BUFFER_LEN * 2];
+	UART u(buf, UART::PARITY_EVEN);
 	Level<int32_t> l;
 	int32_t signal;
 	uint8_t out;
