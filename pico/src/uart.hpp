@@ -3,6 +3,10 @@
 #include "shiftreg.hpp"
 #include "defines.hpp"
 
+#define UART_BITS_PARITY	11
+#define UART_BITS_NO_PARITY	10
+#define UART_BUFFER_LEN (UART_OVERSAMPLING_RATE * UART_BITS_PARITY - UART_OVERSAMPLING_RATE/2)
+
 // High level abstraction of UART
 class UART
 {
@@ -52,6 +56,5 @@ class UART
 		enum UART_STATE state;
 
 		// Data storage for propability
-		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 10 + UART_OVERSAMPLING_RATE/2)> reg_parity;
-		ShiftReg<int16_t, (UART_OVERSAMPLING_RATE * 9 + UART_OVERSAMPLING_RATE/2)> reg_no_parity;
+		ShiftReg<int16_t, UART_BUFFER_LEN> reg;
 };

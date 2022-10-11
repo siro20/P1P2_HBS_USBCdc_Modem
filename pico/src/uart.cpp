@@ -10,8 +10,7 @@ UART::UART(enum UART_PARITY p) :
 	parity(p),
 	counter(0),
 	state(WAIT_FOR_IDLE),
-	reg_parity(),
-	reg_no_parity()
+	reg()
 {
 }
 
@@ -73,7 +72,7 @@ bool UART::FindBestPhase(uint8_t *out, bool *err) {
 
 uint32_t UART::ExtractData(const uint8_t phase, uint8_t *out, bool *err) {
 	uint32_t prob;
-	int16_t last_prob = this->reg_no_parity.At(phase + 0 * UART_OVERSAMPLING_RATE);
+	int16_t last_prob = this->reg.At(phase + 1 * UART_OVERSAMPLING_RATE);
 
 	if (last_prob == 0) {
 		// Framing error
@@ -82,8 +81,8 @@ uint32_t UART::ExtractData(const uint8_t phase, uint8_t *out, bool *err) {
 	}
 	prob = abs(last_prob);
 
-	for (uint8_t b = 1; b < 10; b++) {
-		int16_t tmp_prob = this->reg_no_parity.At(phase + b * UART_OVERSAMPLING_RATE);
+	for (uint8_t b = 1; b < UART_BITS_NO_PARITY; b++) {
+		int16_t tmp_prob = this->reg.At(phase + (b + 1) * UART_OVERSAMPLING_RATE);
 		// Decode data
 		if (b >= 1 && b <= 8) {
 			if (tmp_prob == 0) {
@@ -117,7 +116,7 @@ uint32_t UART::ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_
 	
 	*parity = 0;
 
-	last_prob = this->reg_parity.At(phase + 0 * UART_OVERSAMPLING_RATE);
+	last_prob = this->reg.At(phase + 0 * UART_OVERSAMPLING_RATE);
 	if (last_prob == 0) {
 		// Framing error
 		*err = true;
@@ -125,8 +124,8 @@ uint32_t UART::ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_
 	}
 	prob = abs(last_prob);
 
-	for (size_t b = 1; b < 11; b++) {
-		int16_t tmp_prob = this->reg_parity.At(phase + b * UART_OVERSAMPLING_RATE);
+	for (size_t b = 1; b < UART_BITS_PARITY; b++) {
+		int16_t tmp_prob = this->reg.At(phase + b * UART_OVERSAMPLING_RATE);
 		// Decode data
 		if (b >= 1 && b <= 8) {
 			if (tmp_prob == 0) {
@@ -175,16 +174,14 @@ bool UART::Update(const int32_t symbol_prob, uint8_t *out, bool *err) {
 		if (this->ZeroLevelDetect(symbol_prob)) {
 			this->state = DATA;
 			if (this->parity == PARITY_NONE)
-				this->counter = this->reg_no_parity.Length();
+				this->counter = UART_OVERSAMPLING_RATE * UART_BITS_NO_PARITY;
 			else
-				this->counter = this->reg_parity.Length();
+				this->counter = UART_OVERSAMPLING_RATE * UART_BITS_PARITY;
+			this->counter -= UART_OVERSAMPLING_RATE/2;
 		}
 		// fallthrough
 	case DATA:
-		if (this->parity == PARITY_NONE)
-			this->reg_no_parity.Update(symbol_prob, nullptr);
-		else
-			this->reg_parity.Update(symbol_prob, nullptr);
+		this->reg.Update(symbol_prob, nullptr);
 
 		this->counter--;
 		if (this->counter == 0) {
