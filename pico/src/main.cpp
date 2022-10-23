@@ -109,14 +109,28 @@ struct csv {
 	int16_t adcb;
 };
 
+union CoreInterchangeData {
+	struct {
+		uint8_t RxChar;
+		uint8_t RxValid : 1;
+		uint8_t RxError : 1;
+		uint8_t LineBusy : 1;
+		uint8_t LineFree : 1;
+		uint8_t DACError : 1;
+	};
+	uint32_t Raw;
+};
+
+// Data exchange variables. Unidirectional only.
 volatile bool FifoErr;
-volatile bool DADCErr;
 
 static void core1_entry() {
 	// Millisecond tracking
 	uint32_t ms_since_boot, ms_now;
 	// Increments from 0 to 1000
 	uint32_t second_cnt;
+	CoreInterchangeData Core1Data;
+
 	int j = 0;
 	sleep_ms(3000);
 
@@ -141,24 +155,24 @@ static void core1_entry() {
 		}
 
 		if (multicore_fifo_rvalid()) {
-			uint32_t data = multicore_fifo_pop_blocking();
+			Core1Data.Raw = multicore_fifo_pop_blocking();
+
 			LedManager.ActivityRx();
 
 			// Fixme bus collision?
-			if (data & (1 << 8)) {
+			if (Core1Data.RxError) {
 				LedManager.TransmissionErrorRx();
 				printf("c ");
 
 			} else {
-			//	printf("%02x ", data & 0xff);
+			//	printf("%02x ", Core1Data.RxChar);
 			}
 		}
 		if (uart_tx.Transmitting()) {
 			LedManager.ActivityTx();
 		}
-		if (DADCErr) {
+		if (Core1Data.DACError) {
 			printf("d ");
-			DADCErr = false;
 			LedManager.InternalError();
 		}
 		if (FifoErr) {
@@ -171,36 +185,50 @@ static void core1_entry() {
 
 			LedManager.InternalError();
 		}
+
+		Core1Data.Raw = 0;
 	};
 }
 
-
 int main(void) {
 	uint8_t rx_data;
-	uint32_t fifo_data;
 	bool rx_error;
 	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data, bit_data;
+	int32_t LineIdleCounter;
+	bool LineIsBusy;
+
+	CoreInterchangeData Core1Data;
 
 	stdio_init_all();
 
 	multicore_launch_core1(core1_entry);
 
-	DADCErr = false;
 	FifoErr = false;
+	LineIsBusy = false;
+	Core1Data.Raw = 0;
+	LineIdleCounter = 0;
 
 	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
 	dadc.Start();
+
 	for (;;) {
+		if (Core1Data.Raw) {
+			if (!multicore_fifo_wready()) {
+				FifoErr = true;
+				continue;
+			}
+			multicore_fifo_push_timeout_us(Core1Data.Raw, 0);
+			Core1Data.Raw = 0;
+		}
 		if(!dadc.Update(&adc_data)) {
 			__wfe();
 			continue;
 		}
 		if (dadc.Error ()) {
-			DADCErr = true;
+			Core1Data.DACError = true;
 			dadc.Reset();
 			continue;
 		}
-
 		if (!filter.Update(adc_data, &fir_data)) {
 			continue;
 		}
@@ -214,26 +242,40 @@ int main(void) {
 			continue;
 		}
 
-		// Detect line-idle here for packet frame detection
-		//busy.Update(resamp_data)
-
 		bit.Update(hysteresis_data, &bit_data);
+
+		// p1p2uart is busy as long as receiving a byte. It has an
+		// idle phase of UART_OVERSAMPLING_RATE/2 or less between two bytes.
+		// Thus the line is idle when p1p2uart haven't signaled busy for
+		// at least UART_OVERSAMPLING_RATE samples.
+		//
+		// The idle time between packets on the P1/P2 bus is unknown.
+		// Assume idle time of 1 byte == 9600Baud/11 bits == 1.15msec.
+
+		if (p1p2uart.Receiving()) {
+			if (!LineIsBusy) {
+				LineIsBusy = true;
+				LineIdleCounter = 0;
+				Core1Data.LineBusy = 1;
+			}
+		} else if (LineIdleCounter > 0) {
+			LineIdleCounter--;
+		} else if (LineIsBusy) {
+			LineIsBusy = false;
+			Core1Data.LineFree = 1;
+		}
 
 		rx_data = 0;
 		if (!p1p2uart.Update(bit_data, &rx_data, &rx_error)) {
 			continue;
 		}
+		Core1Data.RxChar = rx_data;
+		Core1Data.RxError = rx_error;
+		Core1Data.RxValid = !rx_error;
 
-		fifo_data = rx_data;
-		if (rx_error) {
-			fifo_data |= 1 << 8;
-		}
-
-		if (!multicore_fifo_wready()) {
-			FifoErr = true;
-			continue;
-		}
-		multicore_fifo_push_timeout_us(fifo_data, 0);
+		// Set the line idle counter. p1p2uart no longer singals Busy at this
+		// points so timeout.
+		LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
 	}
 
 }
