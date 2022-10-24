@@ -30,6 +30,7 @@ class HostUART : public LineReceiver<128>
 
 	void UpdateAndSend(Message& m);
 	void Send(Message& m);
+	Message Pop(void);
 
 	void SetTime(uint64_t t);
 	uint64_t GetTime(void);

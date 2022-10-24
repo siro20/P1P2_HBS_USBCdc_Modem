@@ -21,13 +21,12 @@ Message::Message(uint64_t time, uint32_t status, uint8_t *data, uint8_t length) 
 const char *Message::c_str(void)
 {
 	static char line[128];
-	char tmp[3];
+	size_t off = 0;
 
-	snprintf(line, sizeof(line), "%016u:%08x:", this->Time, this->Status);
-	for (size_t i = 0; i < this->Length; i++) {
-		snprintf(tmp, sizeof(tmp), "%02x", this->Data[i]);
-		strcat(line, tmp);
-	}
+	off = snprintf(line, sizeof(line), "%llu:%02x:", this->Time, this->Status);
+	
+	for (size_t i = 0; i < this->Length; i++)
+		snprintf(&line[off + i*2], sizeof(line) - (off+i*2), "%02x", this->Data[i]);
 
 	return line;
 }
@@ -110,3 +109,20 @@ Message::Message(char *line)
 	};
 }
 
+void Message::Append(uint8_t data)
+{
+	if (this->Length < sizeof(this->Data)) {
+		this->Data[this->Length++] = data;
+	}
+}
+
+void Message::Clear(void)
+{
+	this->Length = 0;
+	this->Status = 0;
+}
+
+bool Message::Overflow(void)
+{
+	return this->Length == sizeof(this->Data);
+}

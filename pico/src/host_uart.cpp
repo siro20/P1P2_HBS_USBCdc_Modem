@@ -13,6 +13,8 @@ static void on_uart_irq() {
 HostUART::HostUART() :
 	LineReceiver(), time(0), error(false), tx_fifo(), rx_fifo()
 {
+	uart_set_baudrate(uart0, 115200);
+
 	// Set UART flow control CTS/RTS, we don't want these, so turn them off
 	uart_set_hw_flow(uart0, false, false);
 
@@ -35,17 +37,14 @@ HostUART::~HostUART()
 
 // Receiving returns true as long as data is being received
 void HostUART::CheckRXFIFO(void) {
-	while (uart_is_readable(uart0)) {
-		uint8_t c = uart_getc(uart0);
-
-		if (!this->Full())
-			this->Push(c);
-	}
+	int c = getchar_timeout_us(0);
+	if (c >= 0 && !this->Full())
+		this->Push(c);
 }
 
 void HostUART::CheckTXFIFO(void) {
 	while (uart_is_writable(uart0) && !this->tx_fifo.Empty()) {
-		uart_putc(uart0, this->tx_fifo.Front());
+		putchar_raw(this->tx_fifo.Front());
 		this->tx_fifo.Pop();
 	}
 }
@@ -58,6 +57,17 @@ void HostUART::Check(void) {
 bool HostUART::HasData(void) {
 	return !this->rx_fifo.Empty();
 }
+
+Message HostUART::Pop(void) {
+	Message m;
+	if (!this->rx_fifo.Empty()) {
+		m = this->rx_fifo.Front();
+		this->rx_fifo.Pop();
+	}
+
+	return m;
+}
+
 
 void HostUART::OnLineReceived(uint8_t *line) {
 	Message m((char *)line);
@@ -92,11 +102,16 @@ void HostUART::Send(Message& m) {
 		line++;
 	}
 	if (!this->tx_fifo.Full()) {
-		this->tx_fifo.Push('\n');
-		this->CheckTXFIFO();
+		this->tx_fifo.Push('\r');
 	} else {
 		this->error = true;
 	}
+	if (!this->tx_fifo.Full()) {
+		this->tx_fifo.Push('\n');
+	} else {
+		this->error = true;
+	}
+	this->CheckTXFIFO();
 }
 
 void HostUART::SetTime(uint64_t t) {
