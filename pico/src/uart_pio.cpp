@@ -64,6 +64,12 @@ void UARTPio::Send(const uint8_t data) {
 	}
 }
 
+void UARTPio::Send(const Message& m) {
+	for (int i = 0; i < m.Length; i++)
+		this->Send(m.Data[i]);
+}
+
+
 // Pops one byte (if possible) from the SW FIFO and moves it to the HW FIFO.
 // If SW FIFO is empty disable interrupt.
 void UARTPio::DrainSWFifo(void) {

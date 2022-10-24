@@ -1,4 +1,5 @@
 #include "circular_buffer_spinlock.hpp"
+#include "message.hpp"
 
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
@@ -20,6 +21,7 @@ class UARTPio
 
 	bool Transmitting(void);
 	void Send(const uint8_t data);
+	void Send(const Message& m);
 	void DrainSWFifo(void);
 	bool DataWaiting(void);
 	void EnableShutdown(bool state);
