@@ -43,7 +43,7 @@ bool UART::FindBestPhase(uint8_t *out, bool *err) {
 		else {
 			prob = this->ExtractDataAndParity(phase, &tmp_parity, &tmp_data, &rx_error);
 
-			if ((tmp_parity & 1) && this->parity == PARITY_EVEN){
+			if ((tmp_parity & 1) && this->parity == PARITY_EVEN) {
 				//std::cout << "parity error " << std::endl;
 				rx_error = true;
 			}
