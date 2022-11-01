@@ -4,7 +4,6 @@
 
 #include "adc.hpp"
 #include "hardware/dma.h"
-#include "hardware/interp.h"
 #include "pico/platform.h"
 #include "twos_complement.pio.h"
 #include "defines.hpp"
