@@ -102,7 +102,7 @@ static void __irq0_pio1_(void) {
 	irq_clear(PIO1_IRQ_0);
 }
 
-static inline volatile void *twos_complement_prepare_irq0(PIO pio, uint sm) {
+static void twos_complement_prepare_irq0(PIO pio, uint sm) {
 	int handler = (pio == pio0) ? PIO0_IRQ_0: PIO1_IRQ_0;
 
 	// Prepare for IRQ support
@@ -110,13 +110,13 @@ static inline volatile void *twos_complement_prepare_irq0(PIO pio, uint sm) {
 	irq_set_enabled(handler, true);
 }
 
-static inline volatile void *twos_complement_enable_irq0(PIO pio, uint sm) {
+static void twos_complement_enable_irq0(PIO pio, uint sm) {
 	pio_set_irq0_source_enabled(pio,
 			(enum pio_interrupt_source)(pis_sm0_rx_fifo_not_empty + sm),
 			true);
 }
 
-static inline volatile void *twos_complement_disable_irq0(PIO pio, uint sm) {
+static void twos_complement_disable_irq0(PIO pio, uint sm) {
 	pio_set_irq0_source_enabled(pio,
 			(enum pio_interrupt_source)(pis_sm0_rx_fifo_not_empty + sm),
 			false);
