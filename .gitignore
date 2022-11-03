@@ -26,3 +26,24 @@ fp-info-cache
 # Exported BOM files
 *.xml
 *.csv
+
+# Ignore build output
+pico/src/p1p2.bin
+pico/src/p1p2.dis
+pico/src/p1p2.elf
+pico/src/p1p2.elf.map
+pico/src/p1p2.hex
+pico/src/p1p2.uf2
+pico/src/twos_complement.pio.h
+pico/src/p1p2_uart_tx.pio.h
+pico/src/CMakeFiles/*
+pico/src/Makefile
+
+pico/tests/test_all
+pico/tests/Makefile
+pico/tests/CMakeFiles/*
+pico/tests/CMakeCache.txt
+
+pico/CMakeFiles/*
+pico/CMakeCache.txt
+pico/Makefile
