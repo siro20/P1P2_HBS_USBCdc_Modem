@@ -132,11 +132,6 @@ enum TRANSMITTER_STATE {
 };
 
 static void core1_entry() {
-	// Millisecond tracking
-	uint32_t ms_since_boot, ms_now;
-	// Increments from 0 to 1000
-	uint32_t second_cnt;
-
 	Message RxMsg;
 	Message TxMsg;
 	size_t TxOffset;
@@ -146,7 +141,6 @@ static void core1_entry() {
 	bool LineIsBusy;
 	enum TRANSMITTER_STATE TxState;
 
-	int j = 0;
 	LineIsBusy = false;
 	TxState = TX_IDLE;
 	TxOffset = 0;
@@ -159,27 +153,13 @@ static void core1_entry() {
 	printf("===========================\n");
 	uart_default_tx_wait_blocking();
 
-	second_cnt = 0;
 	while(1) {
-		//__wfe();
-
-		ms_now = to_ms_since_boot(get_absolute_time());
-		if (ms_now != ms_since_boot) {
-			ms_since_boot = ms_now;
-			second_cnt++;
-		}
-
-		if (second_cnt == 8) {
-			uart_tx.Send(j++);
-			uart_tx.Send(j++);
-			uart_tx.Send(j++);
-			uart_tx.Send(j++);
-			second_cnt = 0;
-		}
-
-		if (multicore_fifo_rvalid())
+		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
-
+		} else {
+			__wfe();
+			continue;
+		}
 		// Update RxMsg
 		if (Core1Data.DACError)
 			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
