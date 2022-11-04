@@ -12,9 +12,6 @@
 #include "uart_pio.hpp"
 #include "led_driver.hpp"
 #include "host_uart.hpp"
-#include "line_busy.hpp"
-#include "channel_comp.hpp"
-#include "gain.hpp"
 #include "dcblock.hpp"
 #include "led_manager.hpp"
 #include "level_detect.hpp"
@@ -56,10 +53,6 @@ Resample<int32_t> resampler(1);
 #endif
 #endif
 
-// comp reduces the distortions introduced by the AC coupling and bias
-// circuit on the receiver side. This reduces the overshoot in the idle phase.
-ChannelComp comp;
-
 // dcblock removes the DC level by using about 200 samples. DC offsets can
 // appear when the used resistors have a high tolerance and don't properly
 // match each others value.
@@ -69,9 +62,6 @@ DCblock dcblock;
 // errors and DC errors ("0" not encoded as alternating up/down).
 __scratch_x("UART") int16_t uart_data[UART_BUFFER_LEN * 2];
 UART p1p2uart(uart_data, UART::PARITY_EVEN);
-
-// busy gives an approximation if the line is currently in use.
-LineBusy<16> busy(BUS_HIGH_MV*2/2);
 
 // Level applies the P1P2 bus hysteresis.
 // The low level signal amplitude is reduced to 0.1.
