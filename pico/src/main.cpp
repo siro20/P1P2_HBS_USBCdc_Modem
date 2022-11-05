@@ -281,8 +281,8 @@ int main(void) {
 				FifoErr = true;
 			} else {
 				multicore_fifo_push_timeout_us(Core1Data.Raw, 0);
-				Core1Data.Raw = 0;
 			}
+			Core1Data.Raw = 0;
 		}
 		if(!dadc.Update(&adc_data)) {
 			__wfe();
