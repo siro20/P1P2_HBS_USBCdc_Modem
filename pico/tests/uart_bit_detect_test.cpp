@@ -233,13 +233,17 @@ TEST(UartBitDetect, DCLevel)
 	for (size_t i = 0; i < 16; i++) {
 		data[i] = LVL_HIGH;
 	}
-
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
 	EXPECT_EQ(out[14], 0);
 
 	memset(data, 0, sizeof(*data) * 16);
 	for (size_t i = 0; i < 16; i++) {
 		data[i] = -LVL_HIGH;
 	}
-
+	for (size_t i = 0; i < 16; i++) {
+		b.Update(data[i], &out[i]);
+	}
 	EXPECT_EQ(out[14], 0);
 }
