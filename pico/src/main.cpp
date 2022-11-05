@@ -179,6 +179,7 @@ static void core1_entry() {
 			if (!LineIsBusy && !uart_tx.Transmitting() && hostUart.HasData()) {
 				TxState = TX_STARTED_WAIT_FOR_BUSY;
 				TxMsg = hostUart.Pop();
+				uart_tx.EnableShutdown(false);
 				uart_tx.Send(TxMsg);
 				TxOffset = 0;
 			}
@@ -209,6 +210,9 @@ static void core1_entry() {
 			if (!LineIsBusy) {
 				TxMsg.Clear();
 				TxState = TX_IDLE;
+			}
+			if (!uart_tx.Transmitting()) {
+				uart_tx.EnableShutdown(true);
 			}
 		break;
 		}
