@@ -136,13 +136,6 @@ static void core1_entry() {
 	TxOffset = 0;
 	BusCollision = false;
 
-	sleep_ms(3000);
-
-	printf("\n===========================\n");
-	printf("RP2040 ADC and Test Console\n");
-	printf("===========================\n");
-	uart_default_tx_wait_blocking();
-
 	while(1) {
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
@@ -265,6 +258,12 @@ int main(void) {
 	CoreInterchangeData Core1Data;
 
 	stdio_init_all();
+	sleep_ms(3000);
+
+	printf("\n==================\n");
+	printf("RP2040 P1/P2 modem\n");
+	printf("==================\n");
+	uart_default_tx_wait_blocking();
 
 	multicore_launch_core1(core1_entry);
 
