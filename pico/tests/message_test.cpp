@@ -13,17 +13,23 @@ TEST(Message, Ctor)
 	EXPECT_EQ(m.Length, sizeof(test_data));
 }
 
+static void cmp(const char *str1, const char *str2)
+{
+	EXPECT_EQ(strcmp(str1, str2), 0) <<
+		"expected " << str1 << ", but got " << str2;
+}
+
 TEST(Message, cstr)
 {
 	uint8_t test_data[3] = {1,2,3};
 	Message m1(1, 2, test_data, sizeof(test_data));
-	EXPECT_EQ(strcmp("0000000000000001:00000002:010203", m1.c_str()), 0);
+	cmp("1:02:010203", m1.c_str());
 
 	Message m2(100000000, 0, test_data, sizeof(test_data));
-	EXPECT_EQ(strcmp("0000000100000000:00000000:010203", m2.c_str()), 0);
+	cmp("100000000:00:010203", m2.c_str());
 
-	Message m3(100000000, 0xffffffff, test_data, sizeof(test_data));
-	EXPECT_EQ(strcmp("0000000100000000:ffffffff:010203", m3.c_str()), 0);
+	Message m3(100000000, 0xff, test_data, sizeof(test_data));
+	cmp("100000000:ff:010203", m3.c_str());
 }
 
 TEST(Message, parsing)
