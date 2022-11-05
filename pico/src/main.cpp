@@ -136,6 +136,9 @@ static void core1_entry() {
 	TxOffset = 0;
 	BusCollision = false;
 
+	// discard old data
+	multicore_fifo_drain();
+
 	while(1) {
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
