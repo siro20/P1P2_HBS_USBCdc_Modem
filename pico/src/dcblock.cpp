@@ -11,7 +11,7 @@ DCblock::DCblock(void) : y(0), x(0)
 // Update returns false if no new data is available.
 // Update returns true if new data has been placed in out.
 bool DCblock::Update(const int32_t in, int32_t *out) {
-	int32_t tmp, xn, yn;
+	int32_t tmp, xn;
 
 	xn = (in << 8);
 
