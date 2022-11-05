@@ -36,7 +36,7 @@ endmacro()
 set(FILES test_main.cpp shiftreg_test.cpp firfilter_test.cpp ../src/fir_filter.cpp 
     resample_test.cpp uart_test.cpp ../src/uart.cpp circularbuffer_test.cpp linereceiver_test.cpp
     ../src/message.cpp message_test.cpp ../src/uart_bit_detect_fast.cpp uart_bit_detect_test.cpp
-    ../src/channel_comp.cpp channel_comp_test.cpp ../src/gain.cpp gain_test.cpp dc_block_test.cpp
+    ../src/channel_comp.cpp channel_comp_test.cpp dc_block_test.cpp
     ../src/dcblock.cpp)
 set(LIBRARIES Threads::Threads)
 include_directories(../src)
