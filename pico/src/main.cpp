@@ -121,7 +121,7 @@ enum TRANSMITTER_STATE {
 	TX_RUNNING_WAIT_FOR_IDLE
 };
 
-static void core0_entry() {
+static void core1_entry() {
 	uint8_t rx_data;
 	bool rx_error;
 	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data, bit_data;
@@ -206,7 +206,7 @@ static void core0_entry() {
 	}
 }
 
-static void core1_entry() {
+static void core0_entry() {
 	Message RxMsg;
 	Message TxMsg;
 	size_t TxOffset;
