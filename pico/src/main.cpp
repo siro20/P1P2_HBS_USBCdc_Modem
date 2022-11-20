@@ -344,9 +344,9 @@ int main(void) {
 	stdio_init_all();	// Must be called on core0!
 	sleep_ms(3000);
 
-	printf("\n==================\n");
-	printf("RP2040 P1/P2 modem\n");
-	printf("==================\n");
+	printf("\n#==================\n");
+	printf("#RP2040 P1/P2 modem\n");
+	printf("#==================\n");
 	uart_default_tx_wait_blocking();
 
 	multicore_launch_core1(core1_entry);
