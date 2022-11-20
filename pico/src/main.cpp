@@ -121,6 +121,91 @@ enum TRANSMITTER_STATE {
 	TX_RUNNING_WAIT_FOR_IDLE
 };
 
+static void core0_entry() {
+	uint8_t rx_data;
+	bool rx_error;
+	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data, bit_data;
+	int32_t LineIdleCounter;
+	bool LineIsBusy;
+
+	CoreInterchangeData Core1Data;
+
+	FifoErr = false;
+	LineIsBusy = false;
+	Core1Data.Raw = 0;
+	LineIdleCounter = 0;
+
+	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
+	dadc.Start();
+
+	for (;;) {
+		if (Core1Data.Raw) {
+			if (!multicore_fifo_wready()) {
+				FifoErr = true;
+			} else {
+				multicore_fifo_push_timeout_us(Core1Data.Raw, 0);
+			}
+			Core1Data.Raw = 0;
+		}
+		if(!dadc.Update(&adc_data)) {
+			__wfe();
+			continue;
+		}
+		if (dadc.Error ()) {
+			Core1Data.DACError = true;
+			dadc.Reset();
+			continue;
+		}
+		if (!filter.Update(adc_data, &fir_data)) {
+			continue;
+		}
+		if (!resampler.Update(fir_data, &resamp_data)) {
+			continue;
+		}
+		if (!dcblock.Update(resamp_data, &ac_data)) {
+			continue;
+		}
+		if (!level.Update(ac_data, &hysteresis_data)) {
+			continue;
+		}
+
+		bit.Update(hysteresis_data, &bit_data);
+
+		// p1p2uart is busy as long as receiving a byte. It has an
+		// idle phase of UART_OVERSAMPLING_RATE/2 or less between two bytes.
+		// Thus the line is idle when p1p2uart haven't signaled busy for
+		// at least UART_OVERSAMPLING_RATE samples.
+		//
+		// The idle time between packets on the P1/P2 bus is unknown.
+		// Assume idle time of 1 byte == 9600Baud/11 bits == 1.15msec.
+
+		if (p1p2uart.Receiving()) {
+			if (!LineIsBusy) {
+				LineIsBusy = true;
+				LineIdleCounter = 0;
+				Core1Data.LineBusy = 1;
+			}
+		} else if (LineIdleCounter > 0) {
+			LineIdleCounter--;
+		} else if (LineIsBusy) {
+			LineIsBusy = false;
+			Core1Data.LineFree = 1;
+		}
+
+		rx_data = 0;
+		if (!p1p2uart.Update(bit_data, &rx_data, &rx_error)) {
+			continue;
+		}
+		Core1Data.RxChar = rx_data;
+		Core1Data.RxError = rx_error;
+		Core1Data.RxValid = !rx_error;
+
+		// Set the line idle counter. p1p2uart no longer singals Busy at this
+		// points so timeout.
+		LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
+	}
+}
+
 static void core1_entry() {
 	Message RxMsg;
 	Message TxMsg;
@@ -256,15 +341,7 @@ static void core1_entry() {
 }
 
 int main(void) {
-	uint8_t rx_data;
-	bool rx_error;
-	int32_t adc_data, fir_data, resamp_data, ac_data, hysteresis_data, bit_data;
-	int32_t LineIdleCounter;
-	bool LineIsBusy;
-
-	CoreInterchangeData Core1Data;
-
-	stdio_init_all();
+	stdio_init_all();	// Must be called on core0!
 	sleep_ms(3000);
 
 	printf("\n==================\n");
@@ -274,79 +351,5 @@ int main(void) {
 
 	multicore_launch_core1(core1_entry);
 
-	FifoErr = false;
-	LineIsBusy = false;
-	Core1Data.Raw = 0;
-	LineIdleCounter = 0;
-
-	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
-	dadc.Start();
-
-	for (;;) {
-		if (Core1Data.Raw) {
-			if (!multicore_fifo_wready()) {
-				FifoErr = true;
-			} else {
-				multicore_fifo_push_timeout_us(Core1Data.Raw, 0);
-			}
-			Core1Data.Raw = 0;
-		}
-		if(!dadc.Update(&adc_data)) {
-			__wfe();
-			continue;
-		}
-		if (dadc.Error ()) {
-			Core1Data.DACError = true;
-			dadc.Reset();
-			continue;
-		}
-		if (!filter.Update(adc_data, &fir_data)) {
-			continue;
-		}
-		if (!resampler.Update(fir_data, &resamp_data)) {
-			continue;
-		}
-		if (!dcblock.Update(resamp_data, &ac_data)) {
-			continue;
-		}
-		if (!level.Update(ac_data, &hysteresis_data)) {
-			continue;
-		}
-
-		bit.Update(hysteresis_data, &bit_data);
-
-		// p1p2uart is busy as long as receiving a byte. It has an
-		// idle phase of UART_OVERSAMPLING_RATE/2 or less between two bytes.
-		// Thus the line is idle when p1p2uart haven't signaled busy for
-		// at least UART_OVERSAMPLING_RATE samples.
-		//
-		// The idle time between packets on the P1/P2 bus is unknown.
-		// Assume idle time of 1 byte == 9600Baud/11 bits == 1.15msec.
-
-		if (p1p2uart.Receiving()) {
-			if (!LineIsBusy) {
-				LineIsBusy = true;
-				LineIdleCounter = 0;
-				Core1Data.LineBusy = 1;
-			}
-		} else if (LineIdleCounter > 0) {
-			LineIdleCounter--;
-		} else if (LineIsBusy) {
-			LineIsBusy = false;
-			Core1Data.LineFree = 1;
-		}
-
-		rx_data = 0;
-		if (!p1p2uart.Update(bit_data, &rx_data, &rx_error)) {
-			continue;
-		}
-		Core1Data.RxChar = rx_data;
-		Core1Data.RxError = rx_error;
-		Core1Data.RxValid = !rx_error;
-
-		// Set the line idle counter. p1p2uart no longer singals Busy at this
-		// points so timeout.
-		LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
-	}
-
+	core0_entry();
 }
