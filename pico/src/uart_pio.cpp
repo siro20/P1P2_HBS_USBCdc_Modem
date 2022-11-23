@@ -69,13 +69,13 @@ void UARTPio::Send(const Message& m) {
 		this->Send(m.Data[i]);
 }
 
-
 // Pops one byte (if possible) from the SW FIFO and moves it to the HW FIFO.
 // If SW FIFO is empty disable interrupt.
 void UARTPio::DrainSWFifo(void) {
 	if (!this->fifo.Empty()) {
-		p1p2_uart_tx(this->pio, this->sm, this->fifo.Front());
-		this->fifo.Pop();
+		uint8_t data;
+		if (this->fifo.Pop(&data))
+			p1p2_uart_tx(this->pio, this->sm, data);
 	} else {
 		// Disable interrupt as SW FIFO is empty
 		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, false);

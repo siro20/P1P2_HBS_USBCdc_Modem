@@ -131,13 +131,12 @@ static void core1_entry() {
 	CoreInterchangeData Core1Data;
 
 	FifoErr = false;
-	LineIsBusy = false;
+	LineIsBusy = true;
 	Core1Data.Raw = 0;
-	LineIdleCounter = 0;
+	LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
 
 	dadc.SetGain((uint16_t)(ADC_EXTERNAL_GAIN * 0x100));
 	dadc.Start();
-
 	for (;;) {
 		if (Core1Data.Raw) {
 			if (!multicore_fifo_wready()) {
@@ -162,6 +161,7 @@ static void core1_entry() {
 		if (!resampler.Update(fir_data, &resamp_data)) {
 			continue;
 		}
+
 		if (!dcblock.Update(resamp_data, &ac_data)) {
 			continue;
 		}
@@ -182,15 +182,18 @@ static void core1_entry() {
 		if (p1p2uart.Receiving()) {
 			if (!LineIsBusy) {
 				LineIsBusy = true;
-				LineIdleCounter = 0;
+				LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;;
 				Core1Data.LineBusy = 1;
 			}
-		} else if (LineIdleCounter > 0) {
-			LineIdleCounter--;
 		} else if (LineIsBusy) {
-			LineIsBusy = false;
-			Core1Data.LineFree = 1;
+			if (LineIdleCounter > 0) {
+				LineIdleCounter--;
+			} else {
+				LineIsBusy = false;
+				Core1Data.LineFree = 1;
+			}
 		}
+
 
 		rx_data = 0;
 		if (!p1p2uart.Update(bit_data, &rx_data, &rx_error)) {
@@ -199,10 +202,6 @@ static void core1_entry() {
 		Core1Data.RxChar = rx_data;
 		Core1Data.RxError = rx_error;
 		Core1Data.RxValid = !rx_error;
-
-		// Set the line idle counter. p1p2uart no longer singals Busy at this
-		// points so timeout.
-		LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
 	}
 }
 
@@ -211,52 +210,98 @@ static void core0_entry() {
 	Message TxMsg;
 	size_t TxOffset;
 	bool BusCollision;
-
-	CoreInterchangeData Core1Data;
 	bool LineIsBusy;
+	int32_t LineBusyCounter;
+	uint64_t UsecSinceBoot; 
+	CoreInterchangeData Core1Data;
 	enum TRANSMITTER_STATE TxState;
 
-	LineIsBusy = false;
+	LineIsBusy = true;
 	TxState = TX_IDLE;
 	TxOffset = 0;
 	BusCollision = false;
+	LineBusyCounter = 0;
+	UsecSinceBoot = to_us_since_boot(get_absolute_time());
+	uart_tx.EnableShutdown(false);
 
 	// discard old data
 	multicore_fifo_drain();
 
 	while(1) {
+		// USB CDC has no interrupts.
+		// Poll for changes...
+		hostUart.Check();
+
+		// Once per 1 milli second
+		if ((UsecSinceBoot + 1000) < to_us_since_boot(get_absolute_time())) {
+			UsecSinceBoot = to_us_since_boot(get_absolute_time());
+			if (LineIsBusy) {
+				LineBusyCounter ++;
+			}
+		}
+
+		// Update LEDs
+		if (uart_tx.Transmitting()) {
+			LedManager.ActivityTx();
+		}
+		if (FifoErr) {
+			FifoErr = false;
+			LedManager.InternalError();
+		}
+		if (uart_tx.Error()) {
+			LedManager.InternalError();
+		}
+		if (LineBusyCounter > 1000) {
+			LedManager.InternalError();
+			LineBusyCounter = 0;
+		}
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
-		} else {
-			__wfe();
-			continue;
-		}
-		// Update RxMsg
-		if (Core1Data.DACError)
-			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
-		else if (Core1Data.RxError)
-			RxMsg.Status = Message::STATUS_ERR_PARITY;
-		else if (Core1Data.RxValid)
-			RxMsg.Append(Core1Data.RxChar);
-		// Packet end reached, transmit now...
-		if (Core1Data.LineFree) {
-			if (RxMsg.Length > 0 || RxMsg.Status != 0) {
+
+			// Update RxMsg
+			if (Core1Data.DACError)
+				RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
+			else if (Core1Data.RxError)
+				RxMsg.Status = Message::STATUS_ERR_PARITY;
+			else if (Core1Data.RxValid)
+				RxMsg.Append(Core1Data.RxChar);
+
+			// Packet end reached, transmit now...
+			if (Core1Data.LineFree) {
+				if (RxMsg.Length > 0 || RxMsg.Status != 0) {
+					hostUart.UpdateAndSend(RxMsg);
+					RxMsg.Clear();
+				}
+			}
+			// Received more data than would fit into message...
+			if (RxMsg.Overflow()) {
+				RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
 				hostUart.UpdateAndSend(RxMsg);
 				RxMsg.Clear();
 			}
-		}
-		// Received more data than would fit into message...
-		if (RxMsg.Overflow()) {
-			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
-			hostUart.UpdateAndSend(RxMsg);
-			RxMsg.Clear();
-		}
 
-		// Update half duplex state machine
-		if (Core1Data.LineFree && LineIsBusy) {
-			LineIsBusy = false;
-		} else if (Core1Data.LineBusy && !LineIsBusy) {
-			LineIsBusy = true;
+			// Update half duplex state machine
+			if (Core1Data.LineFree && LineIsBusy) {
+				LineIsBusy = false;
+				LineBusyCounter = 0;
+			} else if (Core1Data.LineBusy && !LineIsBusy) {
+				LineIsBusy = true;
+			}
+
+			// Update LEDs
+
+			if (Core1Data.RxError) {
+				LedManager.TransmissionErrorRx();
+			} else if (Core1Data.RxValid) {
+				LedManager.ActivityRx();
+			}
+			if (Core1Data.DACError) {
+				LedManager.InternalError();
+			}
+
+		} else if (!hostUart.HasData() && TxState == TX_IDLE) {
+			//__wfe();
+			//continue;
 		}
 
 		switch (TxState) {
@@ -264,7 +309,7 @@ static void core0_entry() {
 			if (!LineIsBusy && !uart_tx.Transmitting() && hostUart.HasData()) {
 				TxState = TX_STARTED_WAIT_FOR_BUSY;
 				TxMsg = hostUart.Pop();
-				uart_tx.EnableShutdown(false);
+				//uart_tx.EnableShutdown(false);
 				uart_tx.Send(TxMsg);
 				TxOffset = 0;
 			}
@@ -273,8 +318,9 @@ static void core0_entry() {
 			if (Core1Data.RxError)
 				BusCollision = true;
 
-			if (LineIsBusy || Core1Data.RxValid)
+			if (LineIsBusy || Core1Data.RxValid) {
 				TxState = TX_RUNNING_CHECK_DATA;
+			}
 			if (!Core1Data.RxValid)
 				break;
 
@@ -297,7 +343,7 @@ static void core0_entry() {
 				TxState = TX_IDLE;
 			}
 			if (!uart_tx.Transmitting()) {
-				uart_tx.EnableShutdown(true);
+				//uart_tx.EnableShutdown(true);
 			}
 		break;
 		}
@@ -306,34 +352,7 @@ static void core0_entry() {
 			BusCollision = false;
 			uart_tx.ClearFifo();
 			TxState = TX_RUNNING_WAIT_FOR_IDLE;
-		}
-
-		// Update LEDs
-
-		if (Core1Data.RxError) {
-			LedManager.TransmissionErrorRx();
-			printf("c ");
-
-		} else if (Core1Data.RxValid) {
-			LedManager.ActivityRx();
-		//	printf("%02x ", Core1Data.RxChar);
-		}
-	
-		if (uart_tx.Transmitting()) {
-			LedManager.ActivityTx();
-		}
-		if (Core1Data.DACError) {
-			printf("d ");
-			LedManager.InternalError();
-		}
-		if (FifoErr) {
-			printf("f ");
-			FifoErr = false;
-			LedManager.InternalError();
-		}
-		if (uart_tx.Error()) {
-			printf("u ");
-			LedManager.InternalError();
+			RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
 		}
 
 		Core1Data.Raw = 0;

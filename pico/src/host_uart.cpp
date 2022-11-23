@@ -11,7 +11,7 @@ static void on_uart_irq() {
 }
 
 HostUART::HostUART() :
-	LineReceiver(), time(0), error(false), tx_fifo(), rx_fifo()
+	time(0), error(false), tx_fifo(), rx_fifo(), rx_msgs()
 {
 	uart_set_baudrate(uart0, 115200);
 
@@ -37,48 +37,67 @@ HostUART::~HostUART()
 
 // Receiving returns true as long as data is being received
 void HostUART::CheckRXFIFO(void) {
-	int c = getchar_timeout_us(0);
-	if (c >= 0 && !this->Full())
-		this->Push(c);
+	int c;
+	while ((c = getchar_timeout_us(0)) >= 0) {
+		if (c >= 0 && !this->rx_fifo.Full()) {
+			this->rx_fifo.Push(c);
+		}
+	}
 }
 
 void HostUART::CheckTXFIFO(void) {
 	while (uart_is_writable(uart0) && !this->tx_fifo.Empty()) {
-		putchar_raw(this->tx_fifo.Front());
-		this->tx_fifo.Pop();
+		uint8_t c;
+		if (this->tx_fifo.Pop(&c))
+			putchar_raw(c);
+	}
+}
+
+void HostUART::CheckRxLine(void) {
+	char *str;
+	if (!this->rx_fifo.Empty()) {
+		str = this->rx_fifo.Data();
+		for (size_t i = 0; i < this->rx_fifo.Length(); i++) {
+			if (str[i] == '\n' || str[i] == '\r') {
+				str[i] = 0;
+				this->OnLineReceived(str);
+				this->rx_fifo.Clear();
+			}
+		}
 	}
 }
 
 void HostUART::Check(void) {
 	this->CheckTXFIFO();
 	this->CheckRXFIFO();
+	this->CheckRxLine();
 }
 
 bool HostUART::HasData(void) {
-	return !this->rx_fifo.Empty();
+	return !this->rx_msgs.Empty();
 }
 
 Message HostUART::Pop(void) {
 	Message m;
-	if (!this->rx_fifo.Empty()) {
-		m = this->rx_fifo.Front();
-		this->rx_fifo.Pop();
+	if (!this->rx_msgs.Empty()) {
+		this->rx_msgs.Pop(&m);
 	}
 
 	return m;
 }
 
+void HostUART::OnLineReceived(char *line) {
+	if (line[0] == 0 || line[0] == '#' || line[0] == ';') {
+		return;
+	}
 
-void HostUART::OnLineReceived(uint8_t *line) {
-	Message m((char *)line);
+	Message m(line);
 
 	// Update internal time based on host time
 	if (m.Time > 0)
 		this->SetTime(m.Time);
 
-	// TODO: Status
-
-	this->rx_fifo.Push(m);
+	this->rx_msgs.Push(m);
 }
 
 void HostUART::UpdateAndSend(Message& m) {

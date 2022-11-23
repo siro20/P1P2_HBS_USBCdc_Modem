@@ -1,11 +1,10 @@
-#include "circular_buffer_spinlock.hpp"
-#include "line_receiver.hpp"
+#include "fifo_irqsafe.hpp"
 #include "message.hpp"
 
 #define MAX_PACKET_SIZE 32
 
 // High level abstraction of UART
-class HostUART : public LineReceiver<128>
+class HostUART
 {
 	public:
 		HostUART(void);
@@ -26,28 +25,28 @@ class HostUART : public LineReceiver<128>
 			PARITY_ODD,
 		};
 
-		void OnLineReceived(uint8_t *line);
+		void OnLineReceived(char *line);
 
-	void UpdateAndSend(Message& m);
-	void Send(Message& m);
-	Message Pop(void);
+		void UpdateAndSend(Message& m);
+		void Send(Message& m);
+		Message Pop(void);
 
-	void SetTime(uint64_t t);
-	uint64_t GetTime(void);
+		void SetTime(uint64_t t);
+		uint64_t GetTime(void);
 
-	void Check(void);
-	bool HasData(void);
+		void Check(void);
+		bool HasData(void);
 
 	private:
 		void CheckRXFIFO(void);
 		void CheckTXFIFO(void);
+		void CheckRxLine(void);
 
 		// time is the offset to host time. can be negative.
 		int64_t time;
 		// error is true on buffer overrun. Should never happen.
 		bool error;
-		CircularBufferSpinlock<uint8_t, 128> tx_fifo;
-
-		CircularBufferSpinlock<Message, 8> rx_fifo;
-
+		FifoIrqSafe<uint8_t, 128> tx_fifo;
+		FifoIrqSafe<char, 128> rx_fifo;
+		FifoIrqSafe<Message, 8> rx_msgs;
 };

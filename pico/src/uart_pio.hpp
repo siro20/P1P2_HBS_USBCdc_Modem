@@ -1,4 +1,4 @@
-#include "circular_buffer_spinlock.hpp"
+#include "fifo_irqsafe.hpp"
 #include "message.hpp"
 
 #include "pico/stdlib.h"
@@ -37,5 +37,5 @@ class UARTPio
 	static const uint PIN_UP = 2;
 	static const uint PIN_DOWN = 3;
 	static const uint PIN_SHUTDOWN = 20;
-	CircularBufferSpinlock<uint8_t, 32>fifo;
+	FifoIrqSafe<uint8_t, 32>fifo;
 };
