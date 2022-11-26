@@ -106,7 +106,7 @@ union CoreInterchangeData {
 		uint8_t RxError : 1;
 		uint8_t LineBusy : 1;
 		uint8_t LineFree : 1;
-		uint8_t DACError : 1;
+		uint8_t DADCError : 1;
 	};
 	uint32_t Raw;
 };
@@ -152,7 +152,7 @@ static void core1_entry() {
 			continue;
 		}
 		if (dadc.Error ()) {
-			Core1Data.DACError = true;
+			Core1Data.DADCError = true;
 			dadc.Reset();
 			continue;
 		}
@@ -257,7 +257,7 @@ static void core0_entry() {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
 
 			// Update RxMsg
-			if (Core1Data.DACError)
+			if (Core1Data.DADCError)
 				RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
 			else if (Core1Data.RxError)
 				RxMsg.Status = Message::STATUS_ERR_PARITY;
@@ -292,7 +292,7 @@ static void core0_entry() {
 			} else if (Core1Data.RxValid) {
 				LedManager.ActivityRx();
 			}
-			if (Core1Data.DACError) {
+			if (Core1Data.DADCError) {
 				LedManager.InternalError();
 			}
 
