@@ -45,35 +45,5 @@ Drag and Drop the new firmware onto the USB mass storage drive.
 The "Daikin P1/P2 Raspberry Pi hat" provides the captured packets in
 an ASCII based hexdump. 
 
-Following rules apply:
+More details can be found here: [Protocol used by the UART](../pico/doc/uart.md)
 
-1. The baud rate is 115200 8N1 no parity
-2. The data is tranfered as ASCII.
-3. Data transfered on the P1/P2 bus is hex encoded.
-4. The hex encoding might have whitespace between the hex characters
-5. Every line contains one paket.
-6. Every line is terminated with '\n'
-7. A line has one or two prefix(es) sperated by ':'
-   * The first prefix is a timestamp in decimal format in msec
-     wrapping around every 86400000 msec.
-   * The second prefix is a status byte signaling the modem
-     state and transmission error.s
-   * The prefix can be an empty string ""
-
-**Example 1:**
-```
-00000001:80:AB CD DE EF
-```
-
-* Timestamp: `00000001`
-* Status: `80`
-* Data: `ABCDDEEF`
-
-**Example 2:**
-```
-::CDefabcd
-```
-
-* Timestamp: ``
-* Status: ``
-* Data: `CDEFABCD`

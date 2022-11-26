@@ -17,6 +17,7 @@ This project is not an offical Daikin product. Use own your own risk!
 - [User handbook](doc/handbook.md)
 - [The electronics in detail](kicad/doc/circuits.md)
 - [Emulating a differential ADC](pico/doc/ADC.md)
+- [Protocol used by the UART](pico/doc/uart.md)
 - [Hardware off-load the P1/P2 encoding using PIO0](pico/doc/Pio0.md)
 - [Hardware off-load inversing ADC channel1](pico/doc/Pio1.md)
 
