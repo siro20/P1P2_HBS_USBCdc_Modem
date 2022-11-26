@@ -116,6 +116,7 @@ volatile bool FifoErr;
 
 enum TRANSMITTER_STATE {
 	TX_IDLE,
+	TX_WAIT_POWERON,
 	TX_STARTED_WAIT_FOR_BUSY,
 	TX_RUNNING_CHECK_DATA,
 	TX_RUNNING_WAIT_FOR_IDLE
@@ -211,18 +212,17 @@ static void core0_entry() {
 	size_t TxOffset;
 	bool BusCollision;
 	bool LineIsBusy;
-	int32_t LineBusyCounter;
-	uint64_t UsecSinceBoot; 
+	uint32_t LineBusySinceMsec;
 	CoreInterchangeData Core1Data;
 	enum TRANSMITTER_STATE TxState;
+	absolute_time_t WaitPowerOnCounter;
 
 	LineIsBusy = true;
 	TxState = TX_IDLE;
 	TxOffset = 0;
 	BusCollision = false;
-	LineBusyCounter = 0;
-	UsecSinceBoot = to_us_since_boot(get_absolute_time());
-	uart_tx.EnableShutdown(false);
+	LineBusySinceMsec = to_ms_since_boot(get_absolute_time());
+	uart_tx.EnableShutdown(true);
 
 	// discard old data
 	multicore_fifo_drain();
@@ -231,14 +231,6 @@ static void core0_entry() {
 		// USB CDC has no interrupts.
 		// Poll for changes...
 		hostUart.Check();
-
-		// Once per 1 milli second
-		if ((UsecSinceBoot + 1000) < to_us_since_boot(get_absolute_time())) {
-			UsecSinceBoot = to_us_since_boot(get_absolute_time());
-			if (LineIsBusy) {
-				LineBusyCounter ++;
-			}
-		}
 
 		// Update LEDs
 		if (uart_tx.Transmitting()) {
@@ -251,9 +243,15 @@ static void core0_entry() {
 		if (uart_tx.Error()) {
 			LedManager.InternalError();
 		}
-		if (LineBusyCounter > 1000) {
-			LedManager.InternalError();
-			LineBusyCounter = 0;
+		// Check if line is busy for too long.
+		if (LineIsBusy) {
+			if (LineBusySinceMsec + LINE_BUSY_TIMEOUT_MS < to_ms_since_boot(get_absolute_time())) {
+				LedManager.InternalError();
+				LineBusySinceMsec = to_ms_since_boot(get_absolute_time());
+				RxMsg.Status = Message::STATUS_ERR_NO_FRAMING;
+				hostUart.UpdateAndSend(RxMsg);
+				RxMsg.Clear();
+			}
 		}
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
@@ -283,13 +281,12 @@ static void core0_entry() {
 			// Update half duplex state machine
 			if (Core1Data.LineFree && LineIsBusy) {
 				LineIsBusy = false;
-				LineBusyCounter = 0;
 			} else if (Core1Data.LineBusy && !LineIsBusy) {
 				LineIsBusy = true;
+				LineBusySinceMsec = to_ms_since_boot(get_absolute_time());
 			}
 
 			// Update LEDs
-
 			if (Core1Data.RxError) {
 				LedManager.TransmissionErrorRx();
 			} else if (Core1Data.RxValid) {
@@ -299,19 +296,29 @@ static void core0_entry() {
 				LedManager.InternalError();
 			}
 
+		} else if (LineIsBusy) {
+			// Break every msec to check LineBusySinceMsec counter
+			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
 		} else if (!hostUart.HasData() && TxState == TX_IDLE) {
-			//__wfe();
-			//continue;
+			// Nothing to TX and statemachine is idle
+			best_effort_wfe_or_timeout(make_timeout_time_ms(20));
+			continue;
 		}
 
 		switch (TxState) {
 		case TX_IDLE:
 			if (!LineIsBusy && !uart_tx.Transmitting() && hostUart.HasData()) {
+				TxState = TX_WAIT_POWERON;
+				WaitPowerOnCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
+				uart_tx.EnableShutdown(false);
+				TxOffset = 0;
+			}
+		break;
+		case TX_WAIT_POWERON:
+			if (WaitPowerOnCounter < to_us_since_boot(get_absolute_time())) {
 				TxState = TX_STARTED_WAIT_FOR_BUSY;
 				TxMsg = hostUart.Pop();
-				//uart_tx.EnableShutdown(false);
 				uart_tx.Send(TxMsg);
-				TxOffset = 0;
 			}
 		break;
 		case TX_STARTED_WAIT_FOR_BUSY:
@@ -343,7 +350,7 @@ static void core0_entry() {
 				TxState = TX_IDLE;
 			}
 			if (!uart_tx.Transmitting()) {
-				//uart_tx.EnableShutdown(true);
+				uart_tx.EnableShutdown(true);
 			}
 		break;
 		}

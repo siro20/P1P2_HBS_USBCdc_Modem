@@ -7,10 +7,16 @@ class Message
 {
 	public:
 		enum STATUS {
+			// Received a packet. No parity error or framing error.
 			STATUS_OK = 0,
+			// Did not RX the exact same data that was TXed
 			STATUS_ERR_BUS_COLLISION = 1,
+			// A buffer overflowed.
 			STATUS_ERR_OVERFLOW = 2,
+			// Parity error.
 			STATUS_ERR_PARITY = 3,
+			// Did not detect line idle within timeout. Just receiving noise?
+			STATUS_ERR_NO_FRAMING = 4,
 		};
 	
 		Message();

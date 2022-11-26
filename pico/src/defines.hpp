@@ -18,3 +18,9 @@
 #define ADC_REF_VOLTAGE_MV 3000
 #define ADC_DMA_BUFFER_SIZE 256
 #define ADC_EXTERNAL_GAIN 1.666
+
+// TX power safe mode and high impedance mode in micro seconds
+#define TX_POWERON_TIMEOUT_US 15000
+
+// Max line busy time in milli seconds
+#define LINE_BUSY_TIMEOUT_MS 500
