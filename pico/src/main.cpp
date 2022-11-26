@@ -360,6 +360,7 @@ static void core0_entry() {
 			uart_tx.ClearFifo();
 			TxState = TX_RUNNING_WAIT_FOR_IDLE;
 			RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
+			LedManager.TransmissionErrorTx();
 		}
 
 		Core1Data.Raw = 0;
