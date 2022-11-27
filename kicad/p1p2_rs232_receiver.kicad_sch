@@ -3544,6 +3544,11 @@
     (effects (font (size 2.54 2.54) (thickness 0.508) bold) (justify left bottom))
     (uuid 10000184-eed5-4c7c-bc17-a2460becbf9b)
   )
+  (text "The LM4861 needs at least 15 milliseconds to wake up!\nConsider using OnSemi NCS2211 instead."
+    (at 92.71 77.47 0)
+    (effects (font (size 1.27 1.27) (thickness 0.254) bold) (justify left bottom))
+    (uuid 256b66fa-7ed1-4f33-a9dd-78ce5b6fa874)
+  )
   (text "LM4861 drives 0.5W @3.3V.\nYou can use LM4871 and drive with 0.75W @3.3V"
     (at 29.21 73.66 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
@@ -3637,6 +3642,10 @@
   (text "Vadc: 0-3.0V" (at 271.526 72.898 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid d95ec281-3f6e-4bfc-a534-e076fc5952e1)
+  )
+  (text "Impedance of 10kOhms is too low!\nNeeds redesign!" (at 113.03 26.67 0)
+    (effects (font (size 1.27 1.27) (thickness 0.254) bold) (justify left bottom))
+    (uuid e681a8dc-a156-43f5-bba4-310ba5394f1c)
   )
   (text "Receiver" (at 190.246 111.76 0)
     (effects (font (size 2.54 2.54) (thickness 0.508) bold) (justify left bottom))
