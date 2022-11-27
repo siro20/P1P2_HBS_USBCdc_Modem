@@ -47,3 +47,7 @@ an ASCII based hexdump.
 
 More details can be found here: [Protocol used by the UART](../pico/doc/uart.md)
 
+## Status LEDs
+
+The board has 3 status LEDs showing the curren operating state.
+Please refer to [Decoding the LED status](../pico/doc/leds.md) for details.
