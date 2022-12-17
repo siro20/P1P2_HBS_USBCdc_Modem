@@ -26,6 +26,29 @@ Connect P1, P2 (2) and Micro-USB (3) on the RPi Pico.
 
 Connect P1, P2 (2) and the 40pin pin-header (1).
 
+### Set up RPi UART0
+
+#### Bluetooth module
+
+You must make sure that no other hardware is using the
+UART0. On RPI 3 the Bluetooth module is using UART0.
+Disable Bluetooth by adding this to `/boot/config.txt`:
+
+    dtoverlay=pi3-disable-bt
+
+#### Login shell
+Make also sure that no login shell is running by removing
+`console=ttyAMA0` from `/boot/cmdline.txt`
+
+It should look like this (or similar):
+
+    dwc_otg.lpm_enable=0 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline rootwait
+
+and not like this:
+
+    dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline rootwait
+
+
 ## Flashing new firmware on the Pico
 
 You need to connect the Micro-USB cable to use the USB mass storage
