@@ -237,7 +237,6 @@ static void core0_entry() {
 			LedManager.ActivityTx();
 		}
 		if (FifoErr) {
-			FifoErr = false;
 			LedManager.InternalError();
 		}
 		if (uart_tx.Error()) {
@@ -253,6 +252,13 @@ static void core0_entry() {
 				RxMsg.Clear();
 			}
 		}
+		if (FifoErr) {
+			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
+			hostUart.UpdateAndSend(RxMsg);
+			RxMsg.Clear();
+			FifoErr = false;
+		}
+
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
 
