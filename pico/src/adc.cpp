@@ -28,15 +28,14 @@ static void irq_dma_handler(void) {
 	dadc.AckDMAIRQ();
 }
 
-static void irq_pio_handler(void) {
-	
-	// This one wakes the CPU on WFE
-	irq_clear(PIO1_IRQ_0);
-}
-
-
 void DifferentialADC::AckDMAIRQ(void) {
-	this->Start();
+	// clear interrupt request on the executing core
+	if (dma_channel_get_irq0_status(this->channel2))
+		dma_channel_acknowledge_irq0(this->channel2);
+	if (dma_channel_get_irq0_status(this->channel))
+		dma_channel_acknowledge_irq0(this->channel);
+
+	// Nothing to do here. it just wakes the CPU from _wfe.
 }
 
 // Configures ADC0 and ADC1 in round robin mode using DMA.
@@ -46,7 +45,7 @@ void DifferentialADC::AckDMAIRQ(void) {
 // the sampled data by one sample + a few CPU cycles used for the PIO.
 
 DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_ptr),
-	tc(0xffffffff), off(0), error(false), gain(0x100), pio(pio1), sm(0) {
+	tc(0x10000000), off(0), error(false), gain(0x100), pio(pio1), sm(0) {
 
 	adc_init();
 
@@ -103,7 +102,7 @@ DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_p
 			this->data,     // dst
 			twos_complement_dma_rx_reg(this->pio, this->sm),  // src
 			this->tc,       // transfer count
-			true            // start immediately
+			false           // start immediately
 		);
 	}
 	{
@@ -123,7 +122,7 @@ DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_p
 			twos_complement_dma_tx_reg(this->pio, this->sm),  // dst
 			&adc_hw->fifo,  // src
 			this->tc,       // transfer count
-			true            // start immediately
+			false           // start immediately
 		);
 	}
 
@@ -135,20 +134,31 @@ DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_p
 	twos_complement_prepare_irq0(this->pio, this->sm);
 }
 
-void DifferentialADC::Start(void) {
+void DifferentialADC::DMARestart(void) {
 	this->off = 0;
-	this->tc = 0xffffffff;
+	this->tc = 0x10000000;
 
+	// Set initial write address. Register is incremented on each transfer.
+	// If Stop is called before transfer count is reached, off would be out
+	// of sync to hardware pointer.
+
+	dma_channel_set_write_addr(this->channel2, this->data, false);
+
+	dma_channel_set_trans_count(this->channel, this->tc, false);
+	dma_channel_set_trans_count(this->channel2, this->tc, false);
+
+	dma_start_channel_mask((1 << this->channel)|(1 << this->channel2));
+}
+
+void DifferentialADC::Start(void) {
 	pio_sm_restart(this->pio, this->sm);
 	pio_sm_set_enabled(this->pio, this->sm, true);
 
-	this->tc = 0xffffffff;
-
-	dma_channel_set_trans_count(this->channel, this->tc, true);
-	dma_channel_set_trans_count(this->channel2, this->tc, true);
+	this->DMARestart();
 
 	// Tell the DMA to raise IRQ line 0 when the channel finishes a block
 	dma_channel_set_irq0_enabled(this->channel2, true);
+	dma_channel_set_irq0_enabled(this->channel, true);
 
 	// This one wakes the CPU on WFE
 	twos_complement_enable_irq0(this->pio, this->sm);
@@ -160,6 +170,7 @@ void DifferentialADC::Stop(void) {
 	adc_fifo_drain();
 	twos_complement_disable_irq0(this->pio, this->sm);
 	dma_channel_set_irq0_enabled(this->channel2, false);
+	dma_channel_set_irq0_enabled(this->channel, false);
 	dma_channel_abort(this->channel);
 	dma_channel_abort(this->channel2);
 	pio_sm_set_enabled(this->pio, this->sm, false);
@@ -186,18 +197,39 @@ bool DifferentialADC::Update(int32_t *out) {
 	uint32_t tc_hw;
 	int16_t x1, x2, y;
 	int16_t diff;
+	int32_t timeout = 100000;
 
 	tc_hw = dma_channel_hw_addr(this->channel2)->transfer_count;
+	if (tc_hw == 0) {
+		//
+		// Need to check for transfer end here to avoid
+		// race conditions between interrupt code and Update().
+		// The IRQ handler will only wake the CPU from _wfe.
+		//
+		while (dma_channel_hw_addr(this->channel)->transfer_count != 0) {
+			// channel should finish before channel2.
+			// This code should never be entered.
+			timeout--;
+			if (timeout == 0) {
+				this->error = true;
+				break;
+			}
+		}
+
+		this->DMARestart();
+		tc_hw = dma_channel_hw_addr(this->channel2)->transfer_count;
+	}
+
 	// Compare transfer count with internal shadow register
 	if (this->tc == tc_hw)
 		return false;
-
 	// Got data!
-	this->tc--;
 
 	// Check for overrun
 	if ((this->tc - tc_hw) & 0xffffff00)
 		this->error = true;
+
+	this->tc--;
 
 	// Compensate phase shift. Use the last 3 samples. Intentionally overflows.
 	x1 = this->data[(uint8_t)(this->off - 0)];

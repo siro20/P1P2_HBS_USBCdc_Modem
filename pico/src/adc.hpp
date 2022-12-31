@@ -28,6 +28,7 @@ class DifferentialADC
 		void Stop(void);
 
 		void AckDMAIRQ(void);
+		void DMARestart(void);
 	private:
 		DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]);
 
