@@ -16,6 +16,7 @@
 #include "led_manager.hpp"
 #include "level_detect.hpp"
 #include "uart_bit_detect_fast.hpp"
+#include "standalone.hpp"
 
 //
 // Global signal processing blocks
@@ -91,6 +92,8 @@ __scratch_y("rled") LEDdriver RxLED = LEDdriver(18);
 // The LED manager drives various patterns on the LEDs depending on the current
 // system state.
 __scratch_y("ledmanager") LEDManager LedManager(RxLED, TxLED, PowerLED);
+
+__scratch_y("standalone") StandaloneController ctrl;
 
 struct csv {
 	int16_t sample;
@@ -232,6 +235,8 @@ static void core0_entry() {
 		// Poll for changes...
 		hostUart.Check();
 
+		ctrl.Check();
+
 		// Update LEDs
 		if (uart_tx.Transmitting()) {
 			LedManager.ActivityTx();
@@ -273,6 +278,10 @@ static void core0_entry() {
 			// Packet end reached, transmit now...
 			if (Core1Data.LineFree) {
 				if (RxMsg.Length > 0 || RxMsg.Status != 0) {
+					// Update external controller
+					ctrl.Receive(&RxMsg);
+
+					// Send to host
 					hostUart.UpdateAndSend(RxMsg);
 					RxMsg.Clear();
 				}
@@ -305,7 +314,7 @@ static void core0_entry() {
 		} else if (LineIsBusy) {
 			// Break every msec to check LineBusySinceMsec counter
 			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
-		} else if (!hostUart.HasData() && TxState == TX_IDLE) {
+		} else if (!ctrl.HasTxData() && !hostUart.HasData() && TxState == TX_IDLE) {
 			// Nothing to TX and statemachine is idle
 			best_effort_wfe_or_timeout(make_timeout_time_ms(20));
 			continue;
@@ -313,18 +322,32 @@ static void core0_entry() {
 
 		switch (TxState) {
 		case TX_IDLE:
-			if (!LineIsBusy && !uart_tx.Transmitting() && hostUart.HasData()) {
-				TxState = TX_WAIT_POWERON;
-				WaitPowerOnCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
-				uart_tx.EnableShutdown(false);
-				TxOffset = 0;
+			if (!LineIsBusy && !uart_tx.Transmitting()) {
+				if (hostUart.HasData() || ctrl.HasTxData()) {
+					TxState = TX_WAIT_POWERON;
+					// Need to wait for the IC to power on...
+					WaitPowerOnCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
+					uart_tx.EnableShutdown(false);
+					TxOffset = 0;
+				}
 			}
 		break;
 		case TX_WAIT_POWERON:
-			if (WaitPowerOnCounter < to_us_since_boot(get_absolute_time())) {
-				TxState = TX_STARTED_WAIT_FOR_BUSY;
-				TxMsg = hostUart.Pop();
-				uart_tx.Send(TxMsg);
+			if (time_reached(WaitPowerOnCounter)) {
+				if (hostUart.HasData()) {
+					TxMsg = hostUart.Pop();
+					uart_tx.Send(TxMsg);
+					TxState = TX_STARTED_WAIT_FOR_BUSY;
+				} else if (ctrl.HasTxData()) {
+					ctrl.TxAnswer(&TxMsg);
+					uart_tx.Send(TxMsg);
+					TxState = TX_STARTED_WAIT_FOR_BUSY;
+				} else {
+					if (!uart_tx.Transmitting()) {
+						uart_tx.EnableShutdown(true);
+					}
+					TxState = TX_IDLE;
+				}
 			}
 		break;
 		case TX_STARTED_WAIT_FOR_BUSY:
@@ -367,6 +390,9 @@ static void core0_entry() {
 			TxState = TX_RUNNING_WAIT_FOR_IDLE;
 			RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
 			LedManager.TransmissionErrorTx();
+			if (ctrl.IsTxAnswer(&TxMsg)) {
+				ctrl.BusCollision();
+			}
 		}
 
 		Core1Data.Raw = 0;
