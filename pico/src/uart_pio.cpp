@@ -34,6 +34,8 @@ UARTPio::UARTPio() : pio(pio0), sm(0)
 	gpio_put(UARTPio::PIN_SHUTDOWN, false);
 }
 
+// Power up/down the hardware.
+// Note: It make take some time for the changes to take effect!
 void UARTPio::EnableShutdown(bool state) {
 	gpio_put(UARTPio::PIN_SHUTDOWN, state);
 }
@@ -64,6 +66,8 @@ void UARTPio::Send(const uint8_t data) {
 	}
 }
 
+// Transmit the message on the bus.
+// Does not check for bus being idle or bus collisions!
 void UARTPio::Send(const Message& m) {
 	for (int i = 0; i < m.Length; i++)
 		this->Send(m.Data[i]);
