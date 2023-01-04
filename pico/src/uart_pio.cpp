@@ -56,12 +56,11 @@ void UARTPio::ClearFifo(void) {
 // Send adds data to the HW FIFO in a non blocking way or adds the data to the
 // internal FIFO to transmit it as soon as the HW FIFO drains.
 void UARTPio::Send(const uint8_t data) {
-	if (!pio_sm_is_tx_fifo_full(this->pio, this->sm))
-		p1p2_uart_tx(this->pio, this->sm, data);
-	else if (this->fifo.Full()) {
+	if (this->fifo.Full()) {
 		this->error = true;
 	} else {
 		this->fifo.Push(data);
+		// Let IRQ handler transfer SW FIFO to HW FIFO
 		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, true);
 	}
 }
@@ -69,18 +68,28 @@ void UARTPio::Send(const uint8_t data) {
 // Transmit the message on the bus.
 // Does not check for bus being idle or bus collisions!
 void UARTPio::Send(const Message& m) {
-	for (int i = 0; i < m.Length; i++)
+	for (int i = 0; i < m.Length && !this->fifo.Full(); i++) {
 		this->Send(m.Data[i]);
+	}
 }
 
 // Pops one byte (if possible) from the SW FIFO and moves it to the HW FIFO.
 // If SW FIFO is empty disable interrupt.
 void UARTPio::DrainSWFifo(void) {
-	if (!this->fifo.Empty()) {
-		uint8_t data;
+	uint8_t data;
+
+	while (1) {
+		if (pio_sm_is_tx_fifo_full(this->pio, this->sm)) {
+			break;
+		}
+		if (this->fifo.Empty()) {
+			break;
+		}
 		if (this->fifo.Pop(&data))
 			p1p2_uart_tx(this->pio, this->sm, data);
-	} else {
+	}
+
+	if (this->fifo.Empty()) {
 		// Disable interrupt as SW FIFO is empty
 		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, false);
 	}
