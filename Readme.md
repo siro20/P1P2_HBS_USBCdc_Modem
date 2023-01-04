@@ -5,6 +5,14 @@ Daikin P1/P2 power-line bus. Instead of a MAX22088 it uses a Raspberry Pi Pico
 as modem. For more details on P1/P2 bus check out
 [https://github.com/Arnold-n/P1P2Serial](https://github.com/Arnold-n/P1P2Serial).
 
+It features:
+- Galvanic isolation
+- 115200baud ASCII UART interface
+- 3 Status LEDs
+- Autonmouse mode to emulate "External controller" on address F0h
+- Easy to solder: no QFN parts, only SOIC-8
+- Cost around 20€ (PCB + parts)
+
 The board can be powered over Micro-USB only and doesn't need a Raspberry Pi
 baseboard. The communication then will be done over the virtual USB UART.
 
