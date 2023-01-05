@@ -55,5 +55,5 @@ class StandaloneController
     // Statemachine
     enum CTRL_STATE State;
     // Counter used in the state machine
-    size_t IdleCounterMs;
+    absolute_time_t IdleCounterMs;
 };
