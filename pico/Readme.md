@@ -6,7 +6,7 @@ on a RPI hat using the RPI PICO as P1/P2 modem.
 
 ## Design
 
-The modem uses ADC Chan1/Chan2 in round robing mode for RX and PIO0 for TX.
+The modem uses ADC Chan1/Chan2 in round robin mode for RX and PIO0 for TX.
 
 While the TX part needs no CPU cycles (except pushing to the PIO TX FIFO), the
 RX path occupies the whole Cortex-M0+ CPU core.
