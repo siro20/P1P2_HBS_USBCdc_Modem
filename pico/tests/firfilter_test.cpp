@@ -15,52 +15,32 @@ TEST(FIRfilter, Filter)
 {
 	int32_t buf_a[7 * 2];
 	int32_t buf_b[7 * 2];
+	const int steps[] = {1, 16, 32, 48, 64, 92, 127};
+
 	FIRFilter f(buf_a, buf_b);
-	int32_t data[256];
-	int32_t out[256];
 
-	for (size_t freq = 1; freq < 128; freq++) {
-	for (size_t j=0;j < 256; j++) {
-		// Generate Sin stating with lowest frequency first
-		data[j] = sin((float)j*2*3.141592/256*(float)freq) * 100;
+	for (size_t j = 0; j < 7; j++) {
+		const size_t freq = steps[j];
+		int32_t data[256];
+		int32_t out[256];
+
+		for (size_t j=0;j < 256; j++) {
+			// Generate Sin stating with lowest frequency first
+			data[j] = sin((float)j*2*3.141592/256*(float)freq) * 100;
+		}
+
+		for (int i = 0; i < 256; i++)
+			f.Update(data[i], &out[i]);
+
+		switch (freq) {
+			case 1: EXPECT_GT(SignalRMS(out, 256), 1100); break;
+			case 16: EXPECT_GT(SignalRMS(out, 256), 1100); break;
+			case 32: EXPECT_GT(SignalRMS(out, 256), 1000); break;
+			case 48: EXPECT_LT(SignalRMS(out, 256), 850); break;
+			case 64: EXPECT_LT(SignalRMS(out, 256), 400); break;
+			case 92: EXPECT_LT(SignalRMS(out, 256), 150); break;
+			case 127: EXPECT_LT(SignalRMS(out, 256), 100); break;
+		}
 	}
 
-	for (int i = 0; i < 256; i++)
-		f.Update(data[i], &out[i]);
-
-	std::cout << "RMS " << SignalRMS(out, 256) << std::endl;
-	}
-}
-
-TEST(FIRfilter, Plot)
-{
-	int32_t buf_a[7 * 2];
-	int32_t buf_b[7 * 2];
-	FIRFilter f(buf_a, buf_b);
-	int32_t data[256];
-	int32_t out[256];
-
-	int j = 0;
-	// x32 oversampling
-	for (int i = 0; i < 256; i++) {
-		data[i] = (i & 16) * 3300;
-		if (i & 32)
-		data[i] *= -1;
-		if (data[i] != 0)
-		j++;
-		if (j == 14)
-		data[i] *= -1;
-	}
-
-
-	for (int i = 0; i < 256; i++) {
-		std::cout << data[i] << ", ";
-	}
-	std::cout <<  std::endl;
-
-	for (int i = 0; i < 256; i++) {
-		f.Update(data[i], &out[i]);
-		std::cout << out[i] << ", ";
-	}
-	std::cout <<  std::endl;
 }
