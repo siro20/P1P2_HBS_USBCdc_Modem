@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES)
     add_executable(${TESTNAME} ${FILES})
-    include_directories(../src/)
+    include_directories(../src/ .)
     target_link_libraries(${TESTNAME} gtest gmock gtest_main ${LIBRARIES})
     add_definitions(-DWITH_GOOGLE_TEST=1)
     gtest_discover_tests(${TESTNAME}
@@ -36,7 +36,7 @@ endmacro()
 set(FILES test_main.cpp shiftreg_test.cpp firfilter_test.cpp ../src/fir_filter.cpp 
     resample_test.cpp uart_test.cpp ../src/uart.cpp 
     ../src/message.cpp message_test.cpp ../src/uart_bit_detect_fast.cpp uart_bit_detect_test.cpp
-     dc_block_test.cpp ../src/dcblock.cpp)
+     dc_block_test.cpp ../src/dcblock.cpp fifo_test.cpp)
 set(LIBRARIES Threads::Threads)
 include_directories(../src)
 
