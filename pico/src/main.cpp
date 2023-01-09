@@ -215,6 +215,7 @@ static void core0_entry() {
 	size_t TxOffset;
 	bool BusCollision;
 	bool LineIsBusy;
+	bool TxFailure;
 	uint32_t LineBusySinceMsec;
 	CoreInterchangeData Core1Data;
 	enum TRANSMITTER_STATE TxState;
@@ -237,6 +238,8 @@ static void core0_entry() {
 
 		ctrl.Check();
 
+		TxFailure = uart_tx.Error();
+
 		// Update LEDs
 		if (uart_tx.Transmitting()) {
 			LedManager.ActivityTx();
@@ -244,7 +247,7 @@ static void core0_entry() {
 		if (FifoErr) {
 			LedManager.InternalError();
 		}
-		if (uart_tx.Error()) {
+		if (TxFailure) {
 			LedManager.InternalError();
 		}
 		// Check if line is busy for too long.
@@ -257,11 +260,16 @@ static void core0_entry() {
 				RxMsg.Clear();
 			}
 		}
-		if (FifoErr) {
+		if (TxFailure) {
+			uart_tx.ClearFifo();
+		}
+
+		if (FifoErr || TxFailure) {
 			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
 			hostUart.UpdateAndSend(RxMsg);
 			RxMsg.Clear();
 			FifoErr = false;
+			TxFailure = false;
 		}
 
 		if (multicore_fifo_rvalid()) {
