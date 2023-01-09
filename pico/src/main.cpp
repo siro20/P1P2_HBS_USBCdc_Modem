@@ -414,6 +414,8 @@ int main(void) {
 	printf("\n#==================\n");
 	printf("#RP2040 P1/P2 modem\n");
 	printf("#==================\n");
+	printf("# Send ;!BLD!; to enter USB bootloader\n");
+
 	uart_default_tx_wait_blocking();
 
 	multicore_launch_core1(core1_entry);

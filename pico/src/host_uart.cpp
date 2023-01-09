@@ -3,6 +3,7 @@
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/irq.h"
+#include "pico/bootrom.h"
 #include <iostream>
 
 static void on_uart_irq() {
@@ -87,6 +88,11 @@ Message HostUART::Pop(void) {
 }
 
 void HostUART::OnLineReceived(char *line) {
+	if (line[0] == ';' && line[1] == '!' && line[2] == 'B' && line[3] == 'L' &&
+	    line[4] == 'D' && line[5] == '!' && line[6] == ';') {
+		reset_usb_boot(0,0);
+		return;
+	}
 	if (line[0] == 0 || line[0] == '#' || line[0] == ';') {
 		return;
 	}
