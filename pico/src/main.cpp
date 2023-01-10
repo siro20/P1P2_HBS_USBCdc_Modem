@@ -359,7 +359,7 @@ static void core0_entry() {
 			}
 		break;
 		case TX_STARTED_WAIT_FOR_BUSY:
-			if (Core1Data.RxError)
+			if (Core1Data.RxError || Core1Data.DADCError)
 				BusCollision = true;
 
 			if (LineIsBusy || Core1Data.RxValid) {
@@ -369,7 +369,7 @@ static void core0_entry() {
 				break;
 
 		case TX_RUNNING_CHECK_DATA:
-			if (Core1Data.RxError)
+			if (Core1Data.RxError || Core1Data.DADCError)
 				BusCollision = true;
 			else if (Core1Data.RxValid) {
 				if(TxMsg.Data[TxOffset] != Core1Data.RxChar)
@@ -377,6 +377,8 @@ static void core0_entry() {
 				TxOffset++;
 				if (TxOffset == TxMsg.Length)
 					TxState = TX_RUNNING_WAIT_FOR_IDLE;
+			} else if (!LineIsBusy) {
+				BusCollision = true;
 			}
 		break;
 		case TX_RUNNING_WAIT_FOR_IDLE:
