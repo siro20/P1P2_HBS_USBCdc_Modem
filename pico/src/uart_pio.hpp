@@ -20,9 +20,7 @@ class UARTPio
 	UARTPio(void);
 
 	bool Transmitting(void);
-	void Send(const uint8_t data);
 	void Send(const Message& m);
-	void DrainSWFifo(void);
 	bool DataWaiting(void);
 	void EnableShutdown(bool state);
 	void ClearFifo(void);
@@ -32,10 +30,13 @@ class UARTPio
 	bool error;
 	PIO pio;
 	uint sm;
+	// DMA channels
+	int channel;
+
 	// Pin2 and Pin3 are used for P1P2 transmission
 	// Pin20 sets the transmitting into shutdown mode
 	static const uint PIN_UP = 2;
 	static const uint PIN_DOWN = 3;
 	static const uint PIN_SHUTDOWN = 20;
-	FifoIrqSafe<uint8_t, 32>fifo;
+	uint8_t Data[32];
 };

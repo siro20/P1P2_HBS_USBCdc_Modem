@@ -1,33 +1,38 @@
 #include <inttypes.h>
 #include "uart_pio.hpp"
 #include "p1p2_uart_tx.pio.h"
+#include "hardware/dma.h"
 
 #include <iostream>
 
-static void pio_irq0_tx_fifo_not_full_handler()
-{
-	UARTPio& pio = UARTPio::getInstance();
-	// Try to move data from SW FIFO to HW FIFO
-	pio.DrainSWFifo();
-
-	pio_interrupt_clear(pio0, pis_sm0_tx_fifo_not_full);
-	irq_clear(PIO0_IRQ_0);
-}
-
 // Initialize PIO0 SM0 to generate the P1P2 bus encoded serial UART.
 // The serial runs at 9600 baud, parity even, 1 stop bit.
-UARTPio::UARTPio() : pio(pio0), sm(0)
+UARTPio::UARTPio() : pio(pio0), sm(0), channel(0), Data{}
 {
 	uint offset = pio_add_program(this->pio, &p1p2_uart_tx_program);
 	p1p2_uart_tx_program_init(this->pio, this->sm, offset, UARTPio::PIN_UP, 9600);
 
-	// Prepare for IRQ support
-	irq_set_exclusive_handler(PIO0_IRQ_0, pio_irq0_tx_fifo_not_full_handler);
-	irq_set_enabled(PIO0_IRQ_0, true);
+	// Get a free channel, panic() if there are none
+	this->channel = dma_claim_unused_channel(true);
 
-	// Disable TX FIFO not full interrupt until data is placed in SW FIFO
-	pio_set_irq0_source_enabled(this->pio,
-		(enum pio_interrupt_source)(pis_sm0_tx_fifo_not_full + this->sm), false);
+	dma_channel_config c = dma_channel_get_default_config(this->channel);
+	// 8 bit transfers
+	channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
+	// increment the write adddress, don't increment read address
+	channel_config_set_read_increment(&c, true);
+	channel_config_set_write_increment(&c, false);
+
+	channel_config_set_high_priority(&c, false);
+
+	// Pace transfers based on availability of TX FIFO not full
+	channel_config_set_dreq(&c, pio_get_dreq(this->pio, this->sm, true));
+
+	dma_channel_configure(this->channel, &c,
+		p1p2_uart_tx_reg(this->pio, this->sm) ,    // dst
+		this->Data,                                // src
+		0,                                         // transfer count
+		false                                      // start immediately
+	);
 
 	gpio_init(UARTPio::PIN_SHUTDOWN);
 	gpio_set_dir(UARTPio::PIN_SHUTDOWN, true);
@@ -49,55 +54,34 @@ bool UARTPio::Transmitting(void) {
 
 // ClearFifo discards all data stored in the TX FIFO
 void UARTPio::ClearFifo(void) {
-	this->fifo.Clear();
+	dma_channel_abort(this->channel);
 	pio_sm_clear_fifos(this->pio, this->sm);
-}
-
-// Send adds data to the HW FIFO in a non blocking way or adds the data to the
-// internal FIFO to transmit it as soon as the HW FIFO drains.
-void UARTPio::Send(const uint8_t data) {
-	if (this->fifo.Full()) {
-		this->error = true;
-	} else {
-		this->fifo.Push(data);
-		// Let IRQ handler transfer SW FIFO to HW FIFO
-		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, true);
-	}
 }
 
 // Transmit the message on the bus.
 // Does not check for bus being idle or bus collisions!
 void UARTPio::Send(const Message& m) {
-	for (int i = 0; i < m.Length && !this->fifo.Full(); i++) {
-		this->Send(m.Data[i]);
+	if (dma_channel_is_busy(this->channel)) {
+		this->error = true;
+		return;
 	}
+	if (m.Length > sizeof(this->Data)) {
+		this->error = true;
+		return;
+	}
+	for (int i = 0; i < m.Length; i++) {
+		this->Data[i] = m.Data[i];
+	}
+
+	dma_channel_set_read_addr(this->channel, this->Data, false);
+	dma_channel_set_trans_count(this->channel, m.Length, false);
+
+	dma_start_channel_mask(1 << this->channel);
 }
 
-// Pops one byte (if possible) from the SW FIFO and moves it to the HW FIFO.
-// If SW FIFO is empty disable interrupt.
-void UARTPio::DrainSWFifo(void) {
-	uint8_t data;
-
-	while (1) {
-		if (pio_sm_is_tx_fifo_full(this->pio, this->sm)) {
-			break;
-		}
-		if (this->fifo.Empty()) {
-			break;
-		}
-		if (this->fifo.Pop(&data))
-			p1p2_uart_tx(this->pio, this->sm, data);
-	}
-
-	if (this->fifo.Empty()) {
-		// Disable interrupt as SW FIFO is empty
-		pio_set_irq0_source_enabled(this->pio, pis_sm0_tx_fifo_not_full, false);
-	}
-}
-
-// Returns true if the software FIFO has data
+// Returns true if the FIFO has data
 bool UARTPio::DataWaiting(void) {
-	return !this->fifo.Empty();
+	return dma_channel_is_busy(this->channel);
 }
 
 // Returns true if a buffer overrun was detected

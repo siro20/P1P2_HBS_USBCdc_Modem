@@ -139,4 +139,8 @@ static inline void p1p2_uart_tx(PIO pio, uint sm, const uint8_t data) {
 	pio_sm_put(pio, sm, data);
 }
 
+static inline volatile void *p1p2_uart_tx_reg(PIO pio, uint sm) {
+	return &pio->txf[sm];
+}
+
 %}
