@@ -1,4 +1,6 @@
 #include "fifo_irqsafe.hpp"
+#include "line_receiver_irqsafe.hpp"
+
 #include "message.hpp"
 
 #define MAX_PACKET_SIZE 32
@@ -37,9 +39,10 @@ class HostUART
 		void Check(void);
 		bool HasData(void);
 
-	private:
 		void CheckRXFIFO(void);
 		void CheckTXFIFO(void);
+	private:
+
 		void CheckRxLine(void);
 
 		// time is the offset to host time. can be negative.
@@ -47,6 +50,6 @@ class HostUART
 		// error is true on buffer overrun. Should never happen.
 		bool error;
 		FifoIrqSafe<uint8_t, 128> tx_fifo;
-		FifoIrqSafe<char, 128> rx_fifo;
+		LineReceiverIrqSafe<char, 128> rx_fifo;
 		FifoIrqSafe<Message, 8> rx_msgs;
 };

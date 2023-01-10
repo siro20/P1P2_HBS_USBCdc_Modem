@@ -8,7 +8,8 @@
 
 static void on_uart_irq() {
 	HostUART& u = HostUART::getInstance();
-	u.Check();
+	u.CheckTXFIFO();
+	u.CheckRXFIFO();
 }
 
 HostUART::HostUART() :
@@ -116,13 +117,15 @@ void HostUART::UpdateAndSend(Message& m) {
 }
 
 void HostUART::Send(Message& m) {
+	uint32_t save;
+
 	const char *line = m.c_str();
 	while (line[0]) {
 		if (!this->tx_fifo.Full()) {
 			this->tx_fifo.Push(line[0]);
-			this->CheckTXFIFO();
 		} else {
 			this->error = true;
+			return;
 		}
 		line++;
 	}
@@ -136,7 +139,10 @@ void HostUART::Send(Message& m) {
 	} else {
 		this->error = true;
 	}
+
+	save = save_and_disable_interrupts();
 	this->CheckTXFIFO();
+	restore_interrupts(save);
 }
 
 void HostUART::SetTime(uint64_t t) {

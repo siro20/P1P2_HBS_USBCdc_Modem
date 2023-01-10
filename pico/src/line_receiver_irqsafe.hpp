@@ -7,11 +7,11 @@
 #include <iostream>
 
 template <class T, size_t N>
-class FifoIrqSafe
+class LineReceiverIrqSafe
 {
   public:
 
-    FifoIrqSafe(const T *init) : data{}, off_read(0), off_write(0), length(N) {
+    LineReceiverIrqSafe(const T *init) : data{}, off(N) {
         assert(init != nullptr);
 
         for (size_t i = 0; i < N; i++) {
@@ -19,7 +19,7 @@ class FifoIrqSafe
         }
     }
 
-    FifoIrqSafe() : data{}, off_read(0), off_write(0), length(0) {
+    LineReceiverIrqSafe() : data{}, off(0) {
     }
 
     // Push returns true if new data has been successfully
@@ -27,35 +27,9 @@ class FifoIrqSafe
     bool Push(const T in)  {
         uint32_t save = save_and_disable_interrupts();
 
-        if (this->length < N) {
-            this->data[this->off_write] = in;
-            this->length++;
-            this->off_write++;
-            if (this->off_write == N) {
-                    this->off_write = 0;
-            }
-            __dmb();
-            restore_interrupts(save);
-
-            return true;
-        }
-
-        restore_interrupts(save);
-        return false;
-    }
-
-    // Push returns true if new data has been successfully
-    // been stored. false if there was not enough space.
-    bool Pop(T *out)  {
-        uint32_t save = save_and_disable_interrupts();
-
-        if (this->length > 0) {
-            *out = this->data[this->off_read];
-            this->off_read++;
-            if (this->off_read == N) {
-                    this->off_read = 0;
-            }
-            this->length--;
+        if (this->off < N) {
+            this->data[this->off] = in;
+            this->off++;
             __dmb();
             restore_interrupts(save);
 
@@ -69,7 +43,7 @@ class FifoIrqSafe
     uint32_t Length(void) {
         uint32_t ret;
         uint32_t save = save_and_disable_interrupts();
-        ret = this->length;
+        ret = this->off;
         restore_interrupts(save);
         return ret;
     }
@@ -84,12 +58,9 @@ class FifoIrqSafe
 
      void Clear(void) {
         uint32_t save = save_and_disable_interrupts();
-        this->length = 0;
-        this->off_read = 0;
-        this->off_write = 0;
+        this->off = 0;
         restore_interrupts(save);
     }
-
 
     // At returns the data at given position
     // 0 is the oldest entry and length-1 is the latest
@@ -105,9 +76,10 @@ class FifoIrqSafe
         return ret;
     }
 
+    inline T *Data(void) {
+        return this->data;
+    }
   private:
     T data[N];
-    uint32_t off_read;
-    uint32_t off_write;
-    uint32_t length;
+    uint32_t off;
 };

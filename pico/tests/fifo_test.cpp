@@ -10,10 +10,6 @@ TEST(IRQSafeFifo, InitialLoadValue)
 	EXPECT_EQ(f.At(0), 1);
 	EXPECT_EQ(f.At(1), 2);
 	EXPECT_EQ(f.At(2), 3);
-
-	EXPECT_EQ(f.Data()[0], 1);
-	EXPECT_EQ(f.Data()[1], 2);
-	EXPECT_EQ(f.Data()[2], 3);
 }
 
 TEST(IRQSafeFifo, Length)
@@ -60,4 +56,14 @@ TEST(IRQSafeFifo, PushPop)
 	f.Push(6);
 	EXPECT_EQ(f.Pop(&c), true);
 	EXPECT_EQ(c, 6);
+	f.Push(7);
+	f.Push(8);
+	f.Push(9);
+
+	EXPECT_EQ(f.Pop(&c), true);
+	EXPECT_EQ(c, 7);
+	EXPECT_EQ(f.Pop(&c), true);
+	EXPECT_EQ(c, 8);
+	EXPECT_EQ(f.Pop(&c), true);
+	EXPECT_EQ(c, 9);
 }
