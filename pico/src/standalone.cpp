@@ -149,7 +149,10 @@ bool StandaloneController::HasTxData(void) {
 // The Msg to be transmitted.
 // Calling this functions resets HasTxData()
 void StandaloneController::TxAnswer(Message *out) {
-	*out = this->Answer;
+	out->Length = this->Answer.Length;
+	for (int i = 0; i < out->Length; i++) {
+		out->Data[i] = this->Answer.Data[i];
+	}
 	this->Ready = false;
 }
 
