@@ -29,8 +29,10 @@ class UART
 	// Update returns true if new data has been placed in out.
 	bool Update(const int32_t symbol_prob, uint8_t *out, bool *err);
 
-	private:
+	// Print contents of internal shiftreg
+	void PrintShiftreg(void);
 
+	private:
 		bool ZeroLevelDetect(const int16_t prob);
 		uint32_t ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_t *out, bool *err);
 		uint32_t ExtractData(const uint8_t phase, uint8_t *out, bool *err);

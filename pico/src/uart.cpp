@@ -157,6 +157,18 @@ uint32_t UART::ExtractDataAndParity(const uint8_t phase, uint8_t *parity, uint8_
 	return prob;
 }
 
+void UART::PrintShiftreg(void) {
+	size_t len = UART_OVERSAMPLING_RATE * UART_BITS_NO_PARITY;
+
+	if (this->parity != PARITY_NONE)
+		len = UART_OVERSAMPLING_RATE * UART_BITS_PARITY;
+
+	std::cout << "shiftreg is: " << std::endl;
+	for (size_t b = 0; b < len; b++) {
+		std::cout << (int) this->reg.At(b) << std::endl;
+	}
+}
+
 // Update returns false if no new data is available.
 // Update returns true if new data has been placed in out.
 bool UART::Update(const int32_t symbol_prob, uint8_t *out, bool *err) {
