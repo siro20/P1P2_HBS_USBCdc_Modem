@@ -190,8 +190,6 @@ bool UART::Update(const int32_t symbol_prob, uint8_t *out, bool *err) {
 
 		break;
 	case STOP:
-		//for (int i = 0; i < this->reg_parity.Length(); i++)
-		//	std::cout << " i " << i << " data " << this->reg_parity.At(i) << std::endl;
 		this->FindBestPhase(out, err);
 		ret = true;
 		this->state = WAIT_FOR_IDLE;
