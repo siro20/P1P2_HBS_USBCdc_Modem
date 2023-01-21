@@ -15,6 +15,8 @@ It features:
 - 115200baud ASCII [UART interface](pico/doc/uart.md)
 - [3 Status LEDs](pico/doc/leds.md)
 - Autonomous mode to emulate "External controller" on address F0h
+- Bus idle/busy detection
+- Collision detection on TX
 - Easy to solder: [no QFN parts, only SOIC-8](kicad/doc/circuits.md)
 - Cost around 20€ (PCB + parts)
 - Raspberry Pi hat compatible (powered from +5V)
