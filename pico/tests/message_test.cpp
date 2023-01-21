@@ -40,6 +40,7 @@ TEST(Message, parsing)
 	char buf4[] = ";010203";
 	char buf5[] = "010203;04";
 	char buf6[] = "01 02  03  ;04";
+	char buf7[] = "::";
 
 	Message m1(buf1);
 	EXPECT_EQ(m1.Data[0], 1);
@@ -72,4 +73,7 @@ TEST(Message, parsing)
 	EXPECT_EQ(m6.Data[0], 1);
 	EXPECT_EQ(m6.Data[1], 2);
 	EXPECT_EQ(m6.Data[2], 3);
+
+	Message m7(buf7);
+	EXPECT_EQ(m7.Length, 0);
 }
