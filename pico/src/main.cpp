@@ -398,7 +398,8 @@ static void core0_entry() {
 			BusCollision = false;
 			uart_tx.ClearFifo();
 			TxState = TX_RUNNING_WAIT_FOR_IDLE;
-			RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
+			if (RxMsg.Status == 0)
+				RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
 			LedManager.TransmissionErrorTx();
 			if (ctrl.IsTxAnswer(&TxMsg)) {
 				ctrl.BusCollision();
