@@ -115,7 +115,7 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 	case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL;
 		for (int i = 3; i < 17; i++) {
-			this->Answer.Data[i] = 0;
+			this->Answer.Data[i] = in->Data[i];
 		}
 
 		this->Answer.Length = 18;
