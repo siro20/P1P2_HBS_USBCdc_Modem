@@ -61,9 +61,13 @@ void HostUART::CheckRxLine(void) {
 		str = this->rx_fifo.Data();
 		for (size_t i = 0; i < this->rx_fifo.Length(); i++) {
 			if (str[i] == '\n' || str[i] == '\r') {
-				str[i] = 0;
-				this->OnLineReceived(str);
-				this->rx_fifo.Clear();
+				if (i == 0) {
+					this->rx_fifo.Clear();
+				} else {
+					str[i] = 0;
+					this->OnLineReceived(str);
+					this->rx_fifo.Clear();
+				}
 			}
 		}
 	}
@@ -103,8 +107,8 @@ void HostUART::OnLineReceived(char *line) {
 	// Update internal time based on host time
 	if (m.Time > 0)
 		this->SetTime(m.Time);
-
-	this->rx_msgs.Push(m);
+	if (m.Length > 0)
+		this->rx_msgs.Push(m);
 }
 
 void HostUART::UpdateAndSend(Message& m) {
