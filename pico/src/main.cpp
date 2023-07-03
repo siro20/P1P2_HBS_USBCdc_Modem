@@ -219,7 +219,7 @@ static void core0_entry() {
 	uint32_t LineBusySinceMsec;
 	CoreInterchangeData Core1Data;
 	enum TRANSMITTER_STATE TxState;
-	absolute_time_t WaitPowerOnCounter;
+	absolute_time_t WaitCounter;
 
 	LineIsBusy = true;
 	TxState = TX_IDLE;
@@ -334,22 +334,26 @@ static void core0_entry() {
 				if (hostUart.HasData() || ctrl.HasTxData()) {
 					TxState = TX_WAIT_POWERON;
 					// Need to wait for the IC to power on...
-					WaitPowerOnCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
+					WaitCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
 					uart_tx.EnableShutdown(false);
 					TxOffset = 0;
 				}
 			}
 		break;
 		case TX_WAIT_POWERON:
-			if (time_reached(WaitPowerOnCounter)) {
+			if (LineIsBusy) {
+				TxState = TX_IDLE;
+			} else if (time_reached(WaitCounter)) {
 				if (hostUart.HasData()) {
 					TxMsg = hostUart.Pop();
 					uart_tx.Send(TxMsg);
 					TxState = TX_STARTED_WAIT_FOR_BUSY;
+					WaitCounter = make_timeout_time_us(TX_BUSY_TIMEOUT_US);
 				} else if (ctrl.HasTxData()) {
 					ctrl.TxAnswer(&TxMsg);
 					uart_tx.Send(TxMsg);
 					TxState = TX_STARTED_WAIT_FOR_BUSY;
+					WaitCounter = make_timeout_time_us(TX_BUSY_TIMEOUT_US);
 				} else {
 					if (!uart_tx.Transmitting()) {
 						uart_tx.EnableShutdown(true);
@@ -364,6 +368,9 @@ static void core0_entry() {
 
 			if (LineIsBusy || Core1Data.RxValid) {
 				TxState = TX_RUNNING_CHECK_DATA;
+				WaitCounter = make_timeout_time_us(TX_RX_TIMEOUT_US);
+			} else if (time_reached(WaitCounter)) {
+				BusCollision = true;
 			}
 			if (!Core1Data.RxValid)
 				break;
@@ -377,7 +384,10 @@ static void core0_entry() {
 				TxOffset++;
 				if (TxOffset == TxMsg.Length)
 					TxState = TX_RUNNING_WAIT_FOR_IDLE;
+				WaitCounter = make_timeout_time_us(TX_RX_TIMEOUT_US);
 			} else if (!LineIsBusy) {
+				BusCollision = true;
+			} else if (time_reached(WaitCounter)) {
 				BusCollision = true;
 			}
 		break;
@@ -385,6 +395,9 @@ static void core0_entry() {
 			// The RX state machine will insert the neccessary delay between
 			// two packets. No need to wait here.
 			if (!LineIsBusy) {
+				TxMsg.Clear();
+				TxState = TX_IDLE;
+			} else if (time_reached(WaitCounter)) {
 				TxMsg.Clear();
 				TxState = TX_IDLE;
 			}
