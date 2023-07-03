@@ -34,6 +34,7 @@ baseboard. The communication then will be done over the virtual USB UART.
 
 - [User handbook](doc/handbook.md)
 - [The electronics in detail](kicad/doc/circuits.md)
+- [Ti LM4871 vs STM TS4990](kicad/doc/clicks.md)
 - [Emulating a differential ADC](pico/doc/ADC.md)
 - [Protocol used by the UART](pico/doc/uart.md)
 - [Decoding the LED status](pico/doc/leds.md)

@@ -7,6 +7,16 @@ as receiver.
 
 *Warning:* Totally overengineered project ahead!
 
+
+## Ti LM4871 vs STM TS4990
+
+In version `v0.1` and `v0.2` the *Ti LM4871* has been used.
+
+Starting from version `v0.3` the STM TS4990 is being used as
+pin-compatible replacement.
+
+See [Ti LM4871 vs STM TS4990](clicks.md) for details.
+
 ## The transmitter
 
 ![](transmitter_circuit.png)
