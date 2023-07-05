@@ -17,6 +17,8 @@ class Message
 			STATUS_ERR_PARITY = 3,
 			// Did not detect line idle within timeout. Just receiving noise?
 			STATUS_ERR_NO_FRAMING = 4,
+			// Internal error
+			STATUS_INTERNAL_ERROR = 5,
 		};
 	
 		Message();

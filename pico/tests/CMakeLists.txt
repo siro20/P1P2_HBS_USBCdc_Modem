@@ -34,7 +34,7 @@ macro(package_add_test_with_libraries TESTNAME FILES LIBRARIES)
 endmacro()
 
 set(FILES test_main.cpp shiftreg_test.cpp firfilter_test.cpp ../src/fir_filter.cpp 
-    resample_test.cpp uart_test.cpp ../src/uart.cpp 
+    resample_test.cpp uart_test.cpp tx_statemachine_test.cpp ../src/uart.cpp 
     ../src/message.cpp message_test.cpp ../src/uart_bit_detect_fast.cpp uart_bit_detect_test.cpp
      dc_block_test.cpp ../src/dcblock.cpp fifo_test.cpp)
 set(LIBRARIES Threads::Threads)

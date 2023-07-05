@@ -17,6 +17,7 @@
 #include "level_detect.hpp"
 #include "uart_bit_detect_fast.hpp"
 #include "standalone.hpp"
+#include "tx_statemachine.hpp"
 
 //
 // Global signal processing blocks
@@ -117,14 +118,6 @@ union CoreInterchangeData {
 // Data exchange variables. Unidirectional only.
 volatile bool FifoErr;
 
-enum TRANSMITTER_STATE {
-	TX_IDLE,
-	TX_WAIT_POWERON,
-	TX_STARTED_WAIT_FOR_BUSY,
-	TX_RUNNING_CHECK_DATA,
-	TX_RUNNING_WAIT_FOR_IDLE
-};
-
 static void core1_entry() {
 	uint8_t rx_data;
 	bool rx_error;
@@ -211,22 +204,14 @@ static void core1_entry() {
 
 static void core0_entry() {
 	Message RxMsg;
-	Message TxMsg;
-	size_t TxOffset;
-	bool BusCollision;
 	bool LineIsBusy;
 	bool TxFailure;
 	uint32_t LineBusySinceMsec;
 	CoreInterchangeData Core1Data;
-	enum TRANSMITTER_STATE TxState;
-	absolute_time_t WaitCounter;
+	TxStateMachine SM(uart_tx);
 
 	LineIsBusy = true;
-	TxState = TX_IDLE;
-	TxOffset = 0;
-	BusCollision = false;
 	LineBusySinceMsec = to_ms_since_boot(get_absolute_time());
-	uart_tx.EnableShutdown(true);
 
 	// discard old data
 	multicore_fifo_drain();
@@ -238,18 +223,16 @@ static void core0_entry() {
 
 		ctrl.Check();
 
-		TxFailure = uart_tx.Error();
+		TxFailure = SM.Error();
 
 		// Update LEDs
-		if (uart_tx.Transmitting()) {
+		if (SM.IsTransmitting())
 			LedManager.ActivityTx();
-		}
-		if (FifoErr) {
+		if (FifoErr || uart_tx.Error())
 			LedManager.InternalError();
-		}
-		if (TxFailure) {
-			LedManager.InternalError();
-		}
+		if (TxFailure)
+			LedManager.TransmissionErrorTx();
+
 		// Check if line is busy for too long.
 		if (LineIsBusy) {
 			if (LineBusySinceMsec + LINE_BUSY_TIMEOUT_MS < to_ms_since_boot(get_absolute_time())) {
@@ -260,18 +243,28 @@ static void core0_entry() {
 				RxMsg.Clear();
 			}
 		}
-		if (TxFailure) {
-			uart_tx.ClearFifo();
-		}
 
-		if (FifoErr || TxFailure) {
+		// FIFO errors should never happen
+		if (FifoErr) {
 			RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
 			hostUart.UpdateAndSend(RxMsg);
 			RxMsg.Clear();
+
 			FifoErr = false;
-			TxFailure = false;
 		}
 
+		// Failed to TX a packet. Notify HOST and CTRL.
+		if (TxFailure) {
+			if (SM.RxMsg.Status != Message::STATUS_ERR_PARITY) {
+				// STATUS_ERR_PARITY is already send by RX code
+				hostUart.UpdateAndSend(SM.RxMsg);
+				SM.RxMsg.Clear();
+			}
+			if (ctrl.IsTxAnswer(&SM.TxMsg))
+				ctrl.BusCollision();
+		}
+
+		// Handle CORE0 events
 		if (multicore_fifo_rvalid()) {
 			Core1Data.Raw = multicore_fifo_pop_blocking();
 
@@ -320,104 +313,28 @@ static void core0_entry() {
 			}
 
 		} else if (LineIsBusy) {
-			// Break every msec to check LineBusySinceMsec counter
+			// Break every msec to check LineBusySinceMsec counter and statemachine
 			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
-		} else if (!ctrl.HasTxData() && !hostUart.HasData() && TxState == TX_IDLE) {
+		} else if (!ctrl.HasTxData() && !hostUart.HasData() && SM.IsIdle()) {
 			// Nothing to TX and statemachine is idle
-			best_effort_wfe_or_timeout(make_timeout_time_ms(20));
+			best_effort_wfe_or_timeout(make_timeout_time_ms(5));
 			continue;
 		}
 
-		switch (TxState) {
-		case TX_IDLE:
-			if (!LineIsBusy && !uart_tx.Transmitting()) {
-				if (hostUart.HasData() || ctrl.HasTxData()) {
-					TxState = TX_WAIT_POWERON;
-					// Need to wait for the IC to power on...
-					WaitCounter = make_timeout_time_us(TX_POWERON_TIMEOUT_US);
-					uart_tx.EnableShutdown(false);
-					TxOffset = 0;
-				}
-			}
-		break;
-		case TX_WAIT_POWERON:
-			if (LineIsBusy) {
-				TxState = TX_IDLE;
-			} else if (time_reached(WaitCounter)) {
-				if (hostUart.HasData()) {
-					TxMsg = hostUart.Pop();
-					uart_tx.Send(TxMsg);
-					TxState = TX_STARTED_WAIT_FOR_BUSY;
-					WaitCounter = make_timeout_time_us(TX_BUSY_TIMEOUT_US);
-				} else if (ctrl.HasTxData()) {
-					ctrl.TxAnswer(&TxMsg);
-					uart_tx.Send(TxMsg);
-					TxState = TX_STARTED_WAIT_FOR_BUSY;
-					WaitCounter = make_timeout_time_us(TX_BUSY_TIMEOUT_US);
-				} else {
-					if (!uart_tx.Transmitting()) {
-						uart_tx.EnableShutdown(true);
-					}
-					TxState = TX_IDLE;
-				}
-			}
-		break;
-		case TX_STARTED_WAIT_FOR_BUSY:
-			if (Core1Data.RxError || Core1Data.DADCError)
-				BusCollision = true;
-
-			if (LineIsBusy || Core1Data.RxValid) {
-				TxState = TX_RUNNING_CHECK_DATA;
-				WaitCounter = make_timeout_time_us(TX_RX_TIMEOUT_US);
-			} else if (time_reached(WaitCounter)) {
-				BusCollision = true;
-			}
-			if (!Core1Data.RxValid)
-				break;
-
-		case TX_RUNNING_CHECK_DATA:
-			if (Core1Data.RxError || Core1Data.DADCError)
-				BusCollision = true;
-			else if (Core1Data.RxValid) {
-				if(TxMsg.Data[TxOffset] != Core1Data.RxChar)
-					BusCollision = true;
-				TxOffset++;
-				if (TxOffset == TxMsg.Length)
-					TxState = TX_RUNNING_WAIT_FOR_IDLE;
-				WaitCounter = make_timeout_time_us(TX_RX_TIMEOUT_US);
-			} else if (!LineIsBusy) {
-				BusCollision = true;
-			} else if (time_reached(WaitCounter)) {
-				BusCollision = true;
-			}
-		break;
-		case TX_RUNNING_WAIT_FOR_IDLE:
-			// The RX state machine will insert the neccessary delay between
-			// two packets. No need to wait here.
-			if (!LineIsBusy) {
-				TxMsg.Clear();
-				TxState = TX_IDLE;
-			} else if (time_reached(WaitCounter)) {
-				TxMsg.Clear();
-				TxState = TX_IDLE;
-			}
-			if (!uart_tx.Transmitting()) {
-				uart_tx.EnableShutdown(true);
-			}
-		break;
-		}
-
-		if (BusCollision) {
-			BusCollision = false;
-			uart_tx.ClearFifo();
-			TxState = TX_RUNNING_WAIT_FOR_IDLE;
-			if (RxMsg.Status == 0)
-				RxMsg.Status = Message::STATUS_ERR_BUS_COLLISION;
-			LedManager.TransmissionErrorTx();
-			if (ctrl.IsTxAnswer(&TxMsg)) {
-				ctrl.BusCollision();
+		// Transmit packet if any
+		if (SM.IsIdle()) {
+			Message TxMsg;
+			if (hostUart.HasData()) {
+				TxMsg = hostUart.Pop();
+				SM.WakeAndTransmit(TxMsg);
+			} else if (ctrl.HasTxData()) {
+				ctrl.TxAnswer(&TxMsg);
+				SM.WakeAndTransmit(TxMsg);
 			}
 		}
+
+		// Update half duplex statemachine
+		SM.Update(LineIsBusy, Core1Data.RxError, Core1Data.RxValid, Core1Data.RxChar);
 
 		Core1Data.Raw = 0;
 	};

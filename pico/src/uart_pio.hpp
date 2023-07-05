@@ -1,3 +1,4 @@
+#pragma once
 #include "fifo_irqsafe.hpp"
 #include "message.hpp"
 

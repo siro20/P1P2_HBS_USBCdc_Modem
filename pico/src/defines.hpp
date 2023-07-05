@@ -23,7 +23,7 @@
 // The LM4871 has a startup time of 15msec.
 // The P1P2 Daikin bus has a minimum 25msec silence between packets.
 #define TX_POWERON_TIMEOUT_US 25000
-#define TX_BUSY_TIMEOUT_US 2000
+#define TX_ONE_CHAR_TIMEOUT_US 2000
 #define TX_RX_TIMEOUT_US 2000
 
 // Max line busy time in milli seconds
