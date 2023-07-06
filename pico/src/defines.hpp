@@ -20,9 +20,10 @@
 #define ADC_EXTERNAL_GAIN 1.666
 
 // TX power safe mode and high impedance mode in micro seconds
-// The LM4871 has a startup time of 15msec.
+// The LM4871 has a startup time of 15 msec.
+// The TS4990 has a startup time of 32 msec.
 // The P1P2 Daikin bus has a minimum 25msec silence between packets.
-#define TX_POWERON_TIMEOUT_US 25000
+#define TX_POWERON_TIMEOUT_US 32000
 #define TX_ONE_CHAR_TIMEOUT_US 2000
 #define TX_RX_TIMEOUT_US 2000
 
