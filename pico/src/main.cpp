@@ -271,9 +271,10 @@ static void core0_entry() {
 			// Update RxMsg
 			if (Core1Data.DADCError)
 				RxMsg.Status = Message::STATUS_ERR_OVERFLOW;
-			else if (Core1Data.RxError)
+			else if (Core1Data.RxError) {
 				RxMsg.Status = Message::STATUS_ERR_PARITY;
-			else if (Core1Data.RxValid)
+				RxMsg.Append(Core1Data.RxChar);
+			} else if (Core1Data.RxValid)
 				RxMsg.Append(Core1Data.RxChar);
 
 			// Packet end reached, transmit now...
