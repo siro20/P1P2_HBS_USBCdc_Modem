@@ -228,9 +228,9 @@ static void core0_entry() {
 		// Update LEDs
 		if (SM.IsTransmitting())
 			LedManager.ActivityTx();
-		if (FifoErr || uart_tx.Error())
+		else if (FifoErr || uart_tx.Error())
 			LedManager.InternalError();
-		if (TxFailure)
+		else if (TxFailure)
 			LedManager.TransmissionErrorTx();
 
 		// Check if line is busy for too long.
@@ -318,6 +318,7 @@ static void core0_entry() {
 			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
 		} else if (!ctrl.HasTxData() && !hostUart.HasData() && SM.IsIdle()) {
 			// Nothing to TX and statemachine is idle
+			// Need to break every few msec to poll the USB CDC
 			best_effort_wfe_or_timeout(make_timeout_time_ms(5));
 			continue;
 		}
