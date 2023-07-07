@@ -179,7 +179,7 @@ static void core1_entry() {
 		if (p1p2uart.Receiving()) {
 			if (!LineIsBusy) {
 				LineIsBusy = true;
-				LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;;
+				LineIdleCounter = 11 * UART_OVERSAMPLING_RATE;
 				Core1Data.LineBusy = 1;
 			}
 		} else if (LineIsBusy) {
