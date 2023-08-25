@@ -36,7 +36,7 @@ UARTPio::UARTPio() : pio(pio0), sm(0), channel(0), Data{}
 
 	gpio_init(UARTPio::PIN_SHUTDOWN);
 	gpio_set_dir(UARTPio::PIN_SHUTDOWN, true);
-	gpio_put(UARTPio::PIN_SHUTDOWN, false);
+	gpio_put(UARTPio::PIN_SHUTDOWN, true);
 }
 
 // Power up/down the hardware.
