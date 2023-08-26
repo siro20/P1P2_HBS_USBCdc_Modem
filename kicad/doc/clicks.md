@@ -28,7 +28,8 @@ voltage low.**
 ## STM TS4990
 
 The STM TS4990 is a pin compatible audio amplifier IC that advertises the
-"Near-zero pop and click" feature.
+"Near-zero pop and click" feature. The STM TS4990 has a startup time of 32
+msec.
 
 The following sample shows the traffic on the P1/P2 bus, as well as the
 power off and power on behaviour
