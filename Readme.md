@@ -51,22 +51,24 @@ baseboard. The communication then will be done over the virtual USB UART.
 
 There are 3 connectors on the Pi hat:
 1. Rasperry Pi 40-pin header
-  - Provides power
-  - Connects to the UART on GPIO14/GPIO15
-  - Connects CTS/RTS on GPIO16/GPIO17
-  - Signals a bus collision on GPIO22
+   - Provides power
+   - Connects to the UART on GPIO14/GPIO15
+   - Connects CTS/RTS on GPIO16/GPIO17
+   - Signals a bus collision on GPIO22
 2. P1/P2 bus connector
- - P1
- - P2
- - Earth
+   - P1
+   - P2
+   - Earth
 3. Micro USB
- - Allows to update the Pico firmware
- - Powers the board when used in standalone mode
+   - Allows to update the Pico firmware
+   - Powers the board when used in standalone mode
+   - Optional when using the 40-pin header
 
-A. Reset button
-B. Boot-mode button
-   Hold button B and press button A to enter the
-   Raspberry Pico USB bootloader.
+Buttons:
+   - A. Reset button
+   - B. Boot-mode button
+
+      Hold button B and press button A to enter the Raspberry Pico USB bootloader.
 
 ![](doc/p1p2_pi_hat_topdown.jpg)
 
