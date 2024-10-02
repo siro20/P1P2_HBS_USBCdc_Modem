@@ -39,6 +39,8 @@ pico/src/p1p2_uart_tx.pio.h
 pico/src/CMakeFiles/*
 pico/src/Makefile
 
+pico/generated/
+
 pico/tests/test_all
 pico/tests/Makefile
 pico/tests/CMakeFiles/*
