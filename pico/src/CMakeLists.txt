@@ -15,6 +15,7 @@ pico_enable_stdio_uart(p1p2 1)
 # create map/bin/hex file etc.
 pico_add_extra_outputs(p1p2)
 
+# Link with newlib-nano.
 target_link_options(p1p2 PRIVATE
     -Wl,--print-memory-usage --specs=nano.specs
 )
