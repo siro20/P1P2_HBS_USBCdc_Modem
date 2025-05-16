@@ -23,7 +23,7 @@ UARTBit<T, N>::UARTBit(T buffer[N * 2],
 	this->receiver_level >>= 8;
 }
 
-// Update returns the probability of a found symbolö
+// Update returns the probability of a found symbol
 // Return value:
 //   = 0    line is idle
 //   > 0    a positive pulse has been detected
