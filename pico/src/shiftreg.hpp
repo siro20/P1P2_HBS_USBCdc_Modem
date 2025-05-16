@@ -32,12 +32,15 @@ class ShiftReg
     // Update returns false if no new data is available.
     // Update returns true if new data has been placed in out.
     bool Update(const T in, T *out)  {
+        T *ptr;
         if (out)
             *out = this->data[this->off];
         assert(this->off < N);
 
-        this->data[this->off] = in;
-        this->data[this->off + N] = in;
+        ptr = &this->data[this->off];
+        // Pointer magic generates smaller code
+        ptr[0] = in;
+        ptr[N] = in;
 
         this->off++;
         if (this->off == N)
@@ -48,8 +51,11 @@ class ShiftReg
     // Update returns false if no new data is available.
     // Update returns true if new data has been placed in out.
     bool Update(const T in)  {
-        this->data[this->off] = in;
-        this->data[this->off + N] = in;
+        T *ptr;
+        ptr = &this->data[this->off];
+        // Pointer magic generates smaller code
+        ptr[0] = in;
+        ptr[N] = in;
 
         this->off++;
         if (this->off == N)
@@ -100,7 +106,10 @@ class ShiftReg
         min = (a.Length() < b.Length()) ? a.Length() : b.Length();
 
         for (i = 0; i < min; i++) {
-            result += ptr_a[i] * ptr_b[i];
+            // Pointer magic generates smaller code
+            result += ptr_a[0] * ptr_b[0];
+            ptr_a++;
+            ptr_b++;
         }
         return result;
     }
