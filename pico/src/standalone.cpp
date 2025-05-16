@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <pico/platform.h>
+#include <pico.h>
 #include <pico/stdlib.h>
 
 #include "standalone.hpp"

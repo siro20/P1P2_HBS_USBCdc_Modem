@@ -15,9 +15,9 @@ if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
         endif()
 endif()
 
-# Pull in SDK (must be before project)
-set(PICO_SDK_PATH pico-sdk)
-include(pico-sdk/external/pico_sdk_import.cmake)
+# initialize pico-sdk from submodule
+# note: this must happen before project()
+include(pico-sdk/pico_sdk_init.cmake)
 
 project(pico_p1p2_decoder C CXX ASM)
 set(CMAKE_C_STANDARD 11)
