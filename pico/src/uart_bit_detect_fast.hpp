@@ -14,8 +14,6 @@ class UARTBit
 	    const uint32_t low_level,
 	    const uint8_t error_rate);
 
-    // Update returns false if no new data is available.
-    // Update returns true if new data has been placed in out.
     void Update(const T in, T *probability);
 
     // Returns the length of the shift register used.
