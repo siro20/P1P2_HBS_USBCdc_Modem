@@ -6,12 +6,12 @@
 #include <iostream>
 
 Message::Message() :
-	Status(0), Time(0), Length(0)
+	Status(0), Length(0)
 {
 }
 
-Message::Message(uint64_t time, uint32_t status, uint8_t *data, uint8_t length) :
-	Status(status), Time(time), Length(length < sizeof(this->Data) ? length : sizeof(this->Data))
+Message::Message(uint32_t status, uint8_t *data, uint8_t length) :
+	Status(status), Length(length < sizeof(this->Data) ? length : sizeof(this->Data))
 {
 	memcpy(this->Data, data, this->Length);
 }
@@ -21,12 +21,28 @@ Message::Message(uint64_t time, uint32_t status, uint8_t *data, uint8_t length) 
 const char *Message::c_str(void)
 {
 	static char line[128];
-	size_t off = 0;
+	char c;
+	size_t off;
 
-	off = snprintf(line, sizeof(line), "%llu:%02x:", this->Time, this->Status);
-	
 	for (size_t i = 0; i < this->Length; i++)
-		snprintf(&line[off + i*2], sizeof(line) - (off+i*2), "%02x", this->Data[i]);
+		snprintf(&line[i*2], sizeof(line) - (i*2), "%02x", this->Data[i]);
+
+	if (this->Status) {
+		off = 2 * this->Length;
+
+		if (this->Status == STATUS_ERR_BUS_COLLISION)
+			c = 'C';
+		else if (this->Status == STATUS_ERR_OVERFLOW)
+			c = 'O';
+		else if (this->Status == STATUS_ERR_PARITY)
+			c = 'P';
+		else if (this->Status == STATUS_ERR_NO_FRAMING)
+			c = 'F';
+		else
+			c = ' ';
+
+		snprintf(&line[off], sizeof(line) - off, " # %02x %c", this->Status, c);
+	}
 
 	return line;
 }
@@ -36,46 +52,14 @@ const char *Message::c_str(void)
 // time (decimal): status bits (uint32 hex): data (uint8 hex)
 Message::Message(char *line)
 {
-	char *ptr = line;
-	char *time_ptr, *status_ptr, *data_ptr;
-	int field = 0;
+	char *data_ptr;
+	int field;
 	char decoded;
 
-	this->Time = 0;
 	this->Status = 0;
 	this->Length = 0;
 
-	time_ptr = NULL;
-	status_ptr = NULL;
 	data_ptr = line;
-	while (ptr[0]) {
-		switch (ptr[0]) {
-		case ';':
-		case '/':
-		case '#':
-			break;
-
-		case ':': // field delimiter
-			ptr[0] = 0;
-			if (field == 0) {
-				time_ptr = line;
-				status_ptr = &ptr[1];
-			} else if (field == 1) {
-				data_ptr = &ptr[1];
-			}
-			field++;
-			break;
-		}
-
-		ptr++;
-	};
-
-	if (time_ptr && strlen(time_ptr) > 0) {
-		this->Time = atoll(time_ptr);
-	}
-	if (status_ptr && strlen(status_ptr) > 0) {
-		this->Status = strtol(status_ptr, NULL, 16);
-	}
 
 	field = 0;
 	while (data_ptr[0]) {
@@ -94,7 +78,7 @@ Message::Message(char *line)
 			decoded = data_ptr[0] - 'A' + 0xa;
 		else if (data_ptr[0] >= '0' && data_ptr[0] <= '9')
 			decoded = data_ptr[0] - '0';
-			
+
 		if (decoded != -1) {
 			if (field == 0) {
 				field = 1;

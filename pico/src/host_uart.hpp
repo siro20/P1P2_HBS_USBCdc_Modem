@@ -33,9 +33,6 @@ class HostUART
 		void Send(Message& m);
 		Message Pop(void);
 
-		void SetTime(uint64_t t);
-		uint64_t GetTime(void);
-
 		void Check(void);
 		bool HasData(void);
 
@@ -45,8 +42,6 @@ class HostUART
 
 		void CheckRxLine(void);
 
-		// time is the offset to host time. can be negative.
-		int64_t time;
 		// error is true on buffer overrun. Should never happen.
 		bool error;
 		FifoIrqSafe<uint8_t, 128> tx_fifo;

@@ -22,7 +22,7 @@ class Message
 		};
 	
 		Message();
-		Message(uint64_t time, uint32_t status, uint8_t *data, uint8_t length);
+		Message(uint32_t status, uint8_t *data, uint8_t length);
 		Message(char *line);
 
 		void Append(uint8_t data);
@@ -32,7 +32,6 @@ class Message
 		const char* c_str();
 
 		uint32_t Status;
-		uint64_t Time;
 
 		uint8_t Data[MAX_PACKET_SIZE];
 		uint8_t Length;

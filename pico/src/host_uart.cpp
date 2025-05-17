@@ -13,7 +13,7 @@ static void on_uart_irq() {
 }
 
 HostUART::HostUART() :
-	time(0), error(false), tx_fifo(), rx_fifo(), rx_msgs()
+	error(false), tx_fifo(), rx_fifo(), rx_msgs()
 {
 	uart_set_baudrate(uart0, 115200);
 
@@ -104,15 +104,11 @@ void HostUART::OnLineReceived(char *line) {
 
 	Message m(line);
 
-	// Update internal time based on host time
-	if (m.Time > 0)
-		this->SetTime(m.Time);
 	if (m.Length > 0)
 		this->rx_msgs.Push(m);
 }
 
 void HostUART::UpdateAndSend(Message& m) {
-	m.Time = this->GetTime();
 	if (this->error) {
 		m.Status |= Message::STATUS_ERR_OVERFLOW;
 		this->error = false;
@@ -147,12 +143,4 @@ void HostUART::Send(Message& m) {
 	save = save_and_disable_interrupts();
 	this->CheckTXFIFO();
 	restore_interrupts(save);
-}
-
-void HostUART::SetTime(uint64_t t) {
-	this->time = t - to_ms_since_boot(get_absolute_time());
-}
-
-uint64_t HostUART::GetTime(void) {
-	return this->time + to_ms_since_boot(get_absolute_time());
 }

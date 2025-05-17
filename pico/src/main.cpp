@@ -82,7 +82,7 @@ __scratch_y("UART") UARTPio& uart_tx = UARTPio::getInstance();
 
 // HostUART implement the logic to interface with the host
 // It generates and decodes the messages transceived on the host interfaces.
-// It keeps an internal time and update the status bits on internal error.
+// It updates the status bits on internal error.
 __scratch_y("host_uart") HostUART& hostUart = HostUART::getInstance();
 
 // LED drivers
