@@ -1,6 +1,29 @@
 #include <gtest/gtest.h>
 
 #include "tx_statemachine.hpp"
+#include "pico/types.h"
+
+/* MOCK TIME */
+static long now;
+static void mock_add_usec_to_now(int delay)
+{
+	now += delay;
+}
+
+static void mock_reset_timebase(void)
+{
+	now = 0;
+}
+
+absolute_time_t make_timeout_time_us(long timeout)
+{
+	return now + timeout;
+}
+
+bool time_reached(absolute_time_t time)
+{
+	return time < now;
+}
 
 TEST(TxStateMachine, InitialValue)
 {

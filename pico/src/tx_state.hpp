@@ -1,6 +1,6 @@
 #pragma once
 #include "defines.hpp"
-#include "pico/stdlib.h"
+#include "pico/types.h"
 
 class TxState
 {
