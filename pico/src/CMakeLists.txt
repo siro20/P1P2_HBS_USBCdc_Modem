@@ -6,8 +6,8 @@ pico_generate_pio_header(p1p2 ${CMAKE_CURRENT_LIST_DIR}/p1p2_uart_tx.pio)
 pico_generate_pio_header(p1p2 ${CMAKE_CURRENT_LIST_DIR}/twos_complement.pio)
 
 target_link_libraries(p1p2 pico_stdlib pico_multicore hardware_adc hardware_dma hardware_pio)
-	# The compiler must make no assumptions about the build.
-#set_target_properties(p1p2 PROPERTIES LINK_FLAGS "-nostdlib++")
+# The compiler must make no assumptions about the build.
+set_target_properties(p1p2 PROPERTIES LINK_FLAGS "-nostdlib++")
 	
 pico_enable_stdio_usb(p1p2 1)
 pico_enable_stdio_uart(p1p2 1)
