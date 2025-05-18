@@ -25,7 +25,8 @@
 //
 #define USE_SW_ADC
 #ifdef USE_SW_ADC
-DifferentialADC_SW& dadc = DifferentialADC_SW::getInstance();
+__scratch_x("ADCInstance") uint16_t adc_data[0x100] __attribute__ ((aligned(0x200)));
+DifferentialADC_SW& dadc = DifferentialADC_SW::getInstance(adc_data);
 #else
 // DifferentialADC provides the differential AC voltage signal captured from
 // the P1P2 lines. As the RP2040 has no differential ADC hardware, the

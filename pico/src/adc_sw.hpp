@@ -10,9 +10,9 @@ using namespace std;
 class DifferentialADC_SW
 {
 	public:
-		static DifferentialADC_SW& getInstance(void)
+		static DifferentialADC_SW& getInstance(uint16_t data_ptr[ADC_BUFFER_LEN])
 		{
-			static DifferentialADC_SW instance;
+			static DifferentialADC_SW instance(data_ptr);
 			return instance;
 		}
 		~DifferentialADC_SW(void);
@@ -30,13 +30,16 @@ class DifferentialADC_SW
 
 		void ClearIRQ(void);
 	private:
-		DifferentialADC_SW(void);
+		DifferentialADC_SW(uint16_t data_ptr[ADC_BUFFER_LEN]);
 
 		/* ADC sample buffer */
-		FifoIrqSafe<int16_t, 128> rx_fifo;
-
+		volatile uint16_t *data;
+		uint8_t off_tx;
+		uint8_t off_rx;
+	
 		bool error;
 		int32_t gain;
 
-		int16_t last_samples[3];
+		bool chan_polarity;
+		uint32_t last_samples[2];
 };
