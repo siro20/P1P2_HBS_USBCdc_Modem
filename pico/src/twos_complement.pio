@@ -110,6 +110,14 @@ static void twos_complement_prepare_irq0(PIO pio, uint sm) {
 	irq_set_enabled(handler, true);
 }
 
+static void twos_complement_unprepare_irq0(PIO pio, uint sm) {
+	int handler = (pio == pio0) ? PIO0_IRQ_0: PIO1_IRQ_0;
+
+	// Unprepare for IRQ support
+	irq_set_exclusive_handler(handler, NULL);
+	irq_set_enabled(handler, false);
+}
+
 static void twos_complement_enable_irq0(PIO pio, uint sm) {
 	pio_set_irq0_source_enabled(pio,
 			(enum pio_interrupt_source)(pis_sm0_rx_fifo_not_empty + sm),

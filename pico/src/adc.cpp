@@ -125,13 +125,6 @@ DifferentialADC::DifferentialADC(int16_t data_ptr[ADC_BUFFER_LEN]) : data(data_p
 			false           // start immediately
 		);
 	}
-
-	// Configure the processor to run irq_dma_handler() when DMA IRQ 0 is asserted
-	irq_set_exclusive_handler(DMA_IRQ_0, irq_dma_handler);
-	irq_set_enabled(DMA_IRQ_0, true);
-
-	// Prepare for IRQ support
-	twos_complement_prepare_irq0(this->pio, this->sm);
 }
 
 void DifferentialADC::DMARestart(void) {
@@ -151,6 +144,15 @@ void DifferentialADC::DMARestart(void) {
 }
 
 void DifferentialADC::Start(void) {
+
+	// Configure the processor to run irq_dma_handler() when DMA IRQ 0 is asserted
+	// PICOSDK bug! Must not be part of constructor! constructor is run on core0.
+	irq_set_exclusive_handler(DMA_IRQ_0, irq_dma_handler);
+	irq_set_enabled(DMA_IRQ_0, true);
+
+	// Prepare for IRQ support
+	twos_complement_prepare_irq0(this->pio, this->sm);
+
 	pio_sm_restart(this->pio, this->sm);
 	pio_sm_set_enabled(this->pio, this->sm, true);
 
@@ -168,6 +170,7 @@ void DifferentialADC::Start(void) {
 void DifferentialADC::Stop(void) {
 	adc_run(false);
 	adc_fifo_drain();
+
 	twos_complement_disable_irq0(this->pio, this->sm);
 	dma_channel_set_irq0_enabled(this->channel2, false);
 	dma_channel_set_irq0_enabled(this->channel, false);
@@ -175,6 +178,11 @@ void DifferentialADC::Stop(void) {
 	dma_channel_abort(this->channel2);
 	pio_sm_set_enabled(this->pio, this->sm, false);
 	pio_sm_clear_fifos(this->pio, this->sm);
+
+	twos_complement_unprepare_irq0(this->pio, this->sm);
+
+	irq_set_enabled(DMA_IRQ_0, false);
+	irq_set_exclusive_handler(DMA_IRQ_0, NULL);
 }
 
 DifferentialADC::~DifferentialADC(void) {
