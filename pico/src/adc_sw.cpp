@@ -56,8 +56,7 @@ DifferentialADC_SW::DifferentialADC_SW() :
 	);
 
 	adc_set_clkdiv(48000000 / (UART_BAUD_RATE * ADC_OVERSAMPLING_RATE));
-	//adc_set_round_robin(0x3); // Sample ADC0 + ADC1 in RR
-	adc_set_round_robin(0x1);
+	adc_set_round_robin(0x3); // Sample ADC0 + ADC1 in RR
 
 	// Configure the processor to run irq_adc_handler() when ADC0 IRQ is asserted
 	irq_set_exclusive_handler(ADC_IRQ_FIFO, irq_adc_handler);
