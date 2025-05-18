@@ -1,4 +1,4 @@
-file(GLOB_RECURSE SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+set(SRC_FILES main.cpp adc_sw.cpp adc.cpp dcblock.cpp fir_filter.cpp host_uart.cpp message.cpp uart_bit_detect_fast.cpp uart_pio.cpp uart.cpp standalone.cpp)
 
 add_executable(p1p2 ${SRC_FILES})
 pico_set_binary_type(p1p2 copy_to_ram)
