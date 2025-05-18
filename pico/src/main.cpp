@@ -23,7 +23,7 @@
 //
 // Global signal processing blocks
 //
-#define USE_SW_ADC
+
 #ifdef USE_SW_ADC
 __scratch_x("ADCInstance") uint16_t adc_data[0x100] __attribute__ ((aligned(0x200)));
 DifferentialADC_SW& dadc = DifferentialADC_SW::getInstance(adc_data);
