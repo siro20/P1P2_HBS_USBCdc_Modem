@@ -6,6 +6,7 @@
 #include <hardware/sync.h>
 
 #include "adc.hpp"
+#include "adc_sw.hpp"
 #include "uart.hpp"
 #include "fir_filter.hpp"
 #include "resample.hpp"
@@ -22,7 +23,10 @@
 //
 // Global signal processing blocks
 //
-
+#define USE_SW_ADC
+#ifdef USE_SW_ADC
+DifferentialADC_SW& dadc = DifferentialADC_SW::getInstance();
+#else
 // DifferentialADC provides the differential AC voltage signal captured from
 // the P1P2 lines. As the RP2040 has no differential ADC hardware, the
 // signal is delayed by 2 ADC samples to emulate a phase correct differential
@@ -30,6 +34,7 @@
 // Provides an 16x oversampled signal.
 __scratch_x("ADCInstance") int16_t adc_data[0x100] __attribute__ ((aligned(0x200)));
 DifferentialADC& dadc = DifferentialADC::getInstance(adc_data);
+#endif
 
 // filter implements a FIR filter to reduce high frequency noise
 // captured by the ADC. As the FIR filter is processing intense,
