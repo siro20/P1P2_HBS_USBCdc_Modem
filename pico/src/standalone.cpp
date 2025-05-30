@@ -94,24 +94,37 @@ bool StandaloneController::NeedToHandlePacket(const Message *in) {
 		return false;
 	}
 
-	switch (in->Data[2]) {
+	uint8_t type = in->Data[2];
+	switch (type) {
 	case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
-		// Response here to enable communication using packets 00f031..00f03f
+		// Respond here to enable communication using packets 00f031..00f03f
 		return true;
-	break;
 	case P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL:
 		// Do pretend to be a LAN adapter (even though this may trigger "data not in sync" upon restart?)
 		// If we don't set address, installer mode in main thermostat may become inaccessible
 		return true;
-	break;
+	case P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
+		{
+			// Check if cached response needs to be transmitted
+			uint8_t idx = type - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
+
+			if (this->Packet3xh[idx].Length > 3 &&
+				this->Packet3xh[idx].Data[0] == P1P2_DAIKIN_CMD_ANSWER &&
+				this->Packet3xh[idx].Data[2] == type) {
+				return true;
+			}
+			break;
+		}
 	}
+
 	return false;
 }
 
 // Received a valid paket that needs to be handled
 // Generates a response message.
 void StandaloneController::GenerateAnswer(const Message *in) {
-	switch (in->Data[2]) {
+	uint8_t type = in->Data[2];
+	switch (type) {
 	case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL;
 		for (int i = 3; i < 17; i++) {
@@ -120,6 +133,7 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 
 		this->Answer.Length = 18;
 	break;
+
 	case P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL:
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL;
 		for (int i = 3; i < 15; i++) {
@@ -129,21 +143,63 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 		this->Answer.Data[8] = 0x10; // LAN adapter ID in 0x31 payload byte 8
 		this->Answer.Length = 16;
 	break;
+
+	// Check if cached response needs to be transmitted
+	case P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
+		{
+			uint8_t idx = type - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
+			if (this->Packet3xh[idx].Length <= 3) {
+				this->Ready = false;
+				return;
+			}
+
+			this->Answer.Data[2] = type;
+
+			// Copy cached payload to Answer
+			for (int i = 3; i < this->Packet3xh[idx].Length - 1; i++) {
+				this->Answer.Data[i] = this->Packet3xh[idx].Data[i];
+			}
+			this->Answer.Length = this->Packet3xh[idx].Length;
+
+			// Mark cached packet as transmitted
+			this->Packet3xh[idx].Length = 0;
+
+			break;
+		}
+
 	default:
 		this->Ready = false;
 		return;
 	}
 
+	// Fix CRC
 	this->Answer.Data[this->Answer.Length - 1] =
 			this->GenCRC(&this->Answer, this->Answer.Length - 1);
 	this->Ready = true;
 }
-
 // Returns true when TxAnswer should be transmitted.
 // Only true as long as TxAnswer() has not been called.
 // Only true till another packet is received, aka. Receive() is called
 bool StandaloneController::HasTxData(void) {
 	return this->Ready;
+}
+
+// Cache a message and transmit it on the next free slot
+bool StandaloneController::CacheTxMessage(Message& in) {
+	if (in.Length <= 3 ||
+		in.Data[0] != P1P2_DAIKIN_CMD_ANSWER ||
+		in.Data[2] < P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL ||
+		in.Data[2] > P1P2_DAIKIN_TYPE_EXT_LAST) {
+		return false;
+	}
+	uint8_t idx = in.Data[2] - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
+
+	// Still have old packet in cache, abort...
+	if (this->Packet3xh[idx].Length > 3)
+		return false;
+	
+	this->Packet3xh[idx] = in;
+	return true;
 }
 
 // The Msg to be transmitted.
@@ -171,8 +227,8 @@ bool StandaloneController::IsTxAnswer(const Message *in) {
 	if (in->Data[1] == this->Address)
 		return false;
 
-	return (in->Data[2] == P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL) ||
-	       (in->Data[2] == P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL);
+	return (in->Data[2] >= P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL) &&
+	       (in->Data[2] <= P1P2_DAIKIN_TYPE_EXT_LAST);
 }
 
 // Calculates the CRC over Data[0]..Data[len - 1]

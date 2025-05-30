@@ -334,7 +334,19 @@ static void core0_entry() {
 			Message TxMsg;
 			if (hostUart.HasData()) {
 				TxMsg = hostUart.Pop();
-				SM.WakeAndTransmit(TxMsg);
+				if (TxMsg.Length > 3) {
+					//
+					// Pakets for external controller are cached until bus controller
+					// requests them.
+					//
+					if (TxMsg.Data[2] >= P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL &&
+						TxMsg.Data[2] <= P1P2_DAIKIN_TYPE_EXT_LAST) {
+						ctrl.CacheTxMessage(TxMsg);
+					} else {
+						// Directly send ...
+						SM.WakeAndTransmit(TxMsg);
+					}
+				}
 			} else if (ctrl.HasTxData()) {
 				ctrl.TxAnswer(&TxMsg);
 				SM.WakeAndTransmit(TxMsg);
