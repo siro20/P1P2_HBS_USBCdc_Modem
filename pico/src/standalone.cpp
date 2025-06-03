@@ -129,6 +129,11 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL;
 		for (int i = 3; i < 17; i++) {
 			this->Answer.Data[i] = in->Data[i];
+
+			/* Request packet 0x3x to be handled in the current cycle */
+			if (i >= 4 && this->Packet3xh[i - 4].Length > 3) {
+				this->Answer.Data[i] |= 1;
+			}
 		}
 
 		this->Answer.Length = 18;
