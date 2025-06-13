@@ -13,7 +13,7 @@ static void on_uart_irq() {
 }
 
 HostUART::HostUART() :
-	error(false), tx_fifo(), rx_fifo(), rx_msgs()
+	error(false), tx_fifo(), rx_fifo(), rx_msgs_ext_ctrl(), rx_msgs_generic()
 {
 	uart_set_baudrate(uart0, 115200);
 
@@ -41,7 +41,17 @@ HostUART::~HostUART()
 void HostUART::CheckRXFIFO(void) {
 	int c;
 	while ((c = getchar_timeout_us(0)) >= 0) {
-		if (c >= 0 && !this->rx_fifo.Full()) {
+		if (this->rx_fifo.Full()) {
+			// Should never happen
+			this->rx_fifo.Clear();
+		}
+		if (c == '\r' || c == '\n') {
+			if (!this->rx_fifo.Empty()) {
+				this->rx_fifo.Push(0);
+				this->OnLineReceived(this->rx_fifo.Data());
+				this->rx_fifo.Clear();
+			}
+		} else {
 			this->rx_fifo.Push(c);
 		}
 	}
@@ -55,38 +65,33 @@ void HostUART::CheckTXFIFO(void) {
 	}
 }
 
-void HostUART::CheckRxLine(void) {
-	char *str;
-	if (!this->rx_fifo.Empty()) {
-		str = this->rx_fifo.Data();
-		for (size_t i = 0; i < this->rx_fifo.Length(); i++) {
-			if (str[i] == '\n' || str[i] == '\r') {
-				if (i == 0) {
-					this->rx_fifo.Clear();
-				} else {
-					str[i] = 0;
-					this->OnLineReceived(str);
-					this->rx_fifo.Clear();
-				}
-			}
-		}
-	}
-}
 
 void HostUART::Check(void) {
 	this->CheckTXFIFO();
 	this->CheckRXFIFO();
-	this->CheckRxLine();
 }
 
-bool HostUART::HasData(void) {
-	return !this->rx_msgs.Empty();
+bool HostUART::HasDataExtController(void) {
+	return !this->rx_msgs_ext_ctrl.Empty();
 }
 
-Message HostUART::Pop(void) {
+bool HostUART::HasDataGeneric(void) {
+	return !this->rx_msgs_generic.Empty();
+}
+
+Message HostUART::PopExtController(void) {
 	Message m;
-	if (!this->rx_msgs.Empty()) {
-		this->rx_msgs.Pop(&m);
+	if (!this->rx_msgs_ext_ctrl.Empty()) {
+		this->rx_msgs_ext_ctrl.Pop(&m);
+	}
+
+	return m;
+}
+
+Message HostUART::PopGeneric(void) {
+	Message m;
+	if (!this->rx_msgs_generic.Empty()) {
+		this->rx_msgs_generic.Pop(&m);
 	}
 
 	return m;
@@ -104,8 +109,10 @@ void HostUART::OnLineReceived(char *line) {
 
 	Message m(line);
 
-	if (m.Length > 0)
-		this->rx_msgs.Push(m);
+	if (m.Length > 3 && m.Data[0] == 0x40 && m.Data[1] == 0xf0 && (m.Data[2] & 0xF0) == 0x30)
+		this->rx_msgs_ext_ctrl.Push(m);
+	else if (m.Length > 3)
+		this->rx_msgs_generic.Push(m);
 }
 
 void HostUART::UpdateAndSend(Message& m) {

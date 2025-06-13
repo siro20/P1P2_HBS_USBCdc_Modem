@@ -31,20 +31,21 @@ class HostUART
 
 		void UpdateAndSend(Message& m);
 		void Send(Message& m);
-		Message Pop(void);
+		Message PopExtController(void);
+		Message PopGeneric(void);
 
 		void Check(void);
-		bool HasData(void);
+		bool HasDataExtController(void);
+		bool HasDataGeneric(void);
 
 		void CheckRXFIFO(void);
 		void CheckTXFIFO(void);
 	private:
 
-		void CheckRxLine(void);
-
 		// error is true on buffer overrun. Should never happen.
 		bool error;
 		FifoIrqSafe<uint8_t, 128> tx_fifo;
 		LineReceiverIrqSafe<char, 128> rx_fifo;
-		FifoIrqSafe<Message, 8> rx_msgs;
+		FifoIrqSafe<Message, 8> rx_msgs_ext_ctrl;
+		FifoIrqSafe<Message, 8> rx_msgs_generic;
 };

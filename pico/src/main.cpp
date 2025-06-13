@@ -322,39 +322,36 @@ static void core0_entry() {
 		} else if (LineIsBusy) {
 			// Break every msec to check LineBusySinceMsec counter and statemachine
 			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
-		} else if (!ctrl.HasTxData() && !hostUart.HasData() && SM.IsIdle()) {
+		} else if (!ctrl.HasTxData() && !hostUart.HasDataExtController() && !hostUart.HasDataGeneric() && SM.IsIdle()) {
 			// Nothing to TX and statemachine is idle
 			// Need to break every few msec to poll the USB CDC
-			best_effort_wfe_or_timeout(make_timeout_time_ms(5));
+			best_effort_wfe_or_timeout(make_timeout_time_ms(1));
 			continue;
-		}
-
-		// Transmit packet if any
-		if (SM.IsIdle()) {
-			Message TxMsg;
-			if (hostUart.HasData()) {
-				TxMsg = hostUart.Pop();
-				if (TxMsg.Length > 3) {
-					//
-					// Pakets for external controller are cached until bus controller
-					// requests them.
-					//
-					if (TxMsg.Data[2] >= P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL &&
-						TxMsg.Data[2] <= P1P2_DAIKIN_TYPE_EXT_LAST) {
-						ctrl.CacheTxMessage(TxMsg);
-					} else {
-						// Directly send ...
-						SM.WakeAndTransmit(TxMsg);
-					}
-				}
-			} else if (ctrl.HasTxData()) {
-				ctrl.TxAnswer(&TxMsg);
-				SM.WakeAndTransmit(TxMsg);
-			}
 		}
 
 		// Update half duplex statemachine
 		SM.Update(LineIsBusy, Core1Data.RxError, Core1Data.RxValid, Core1Data.RxChar);
+
+		Message TxMsg;
+		if (hostUart.HasDataExtController()) {
+			TxMsg = hostUart.PopExtController();
+			ctrl.CacheTxMessage(TxMsg);
+		}
+
+		// Transmit packet if any. Start transmission in the moment the lines becomes idle.
+		if (SM.IsIdle() && ctrl.HasTxData()) {
+			ctrl.TxAnswer(&TxMsg);
+			SM.WakeAndTransmit(TxMsg);
+		} else if (hostUart.HasDataGeneric() && ctrl.ExtCtrlPhaseEndsNow() && SM.WaitsForIdle()) {
+			// Active bus collision prevention!
+			// Transmit when in the 3xh parameter exchange phase ends.
+			//
+			// In phase WaitsForIdle the output buffers are still enabled,
+			// thus there's no need to wait TX_POWERON_TIMEOUT_US usec before
+			// starting to transmit.
+			TxMsg = hostUart.PopGeneric();
+			SM.Transmit(TxMsg);
+		}
 
 		Core1Data.Raw = 0;
 	};

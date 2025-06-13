@@ -11,7 +11,8 @@ class TxState
 			WAIT_POWERON,
 			STARTED_WAIT_FOR_BUSY,
 			RUNNING_CHECK_DATA,
-			RUNNING_WAIT_FOR_IDLE
+			RUNNING_WAIT_FOR_IDLE,
+			RUNNING_WAIT_FOR_IDLE_RESTART
 		};
 
 		TxState(const enum STATE NewState) :
@@ -59,6 +60,8 @@ class TxState
 				return TX_ONE_CHAR_TIMEOUT_US * 2;
 			case RUNNING_WAIT_FOR_IDLE:
 				return TX_ONE_CHAR_TIMEOUT_US * 2;
+			case RUNNING_WAIT_FOR_IDLE_RESTART:
+				return TX_INTER_PACKET_DELAY;
 			default:
 				return 0;
 			}
@@ -74,6 +77,7 @@ class TxState
 				return false;
 
 			case WAIT_POWERON:
+			case RUNNING_WAIT_FOR_IDLE_RESTART:
 				return true;
 			default:
 				return false;
@@ -83,6 +87,7 @@ class TxState
 		static bool IsTimeoutError(const enum STATE s) {
 			switch (s) {
 			case IDLE:
+			case RUNNING_WAIT_FOR_IDLE_RESTART:
 			case WAIT_POWERON:
 				return false;
 			case IDLE_WAIT_LINEFREE:
@@ -101,6 +106,7 @@ class TxState
 			case STARTED_WAIT_FOR_BUSY:
 			case RUNNING_CHECK_DATA:
 			case RUNNING_WAIT_FOR_IDLE:
+			case RUNNING_WAIT_FOR_IDLE_RESTART:
 				return false;
 
 			case WAIT_POWERON:
@@ -115,6 +121,7 @@ class TxState
 			case IDLE_WAIT_LINEFREE:
 			case STARTED_WAIT_FOR_BUSY:
 			case RUNNING_WAIT_FOR_IDLE:
+			case RUNNING_WAIT_FOR_IDLE_RESTART:
 			case WAIT_POWERON:
 				return false;
 

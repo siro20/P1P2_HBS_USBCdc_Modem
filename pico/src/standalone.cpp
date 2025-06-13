@@ -14,7 +14,8 @@
 StandaloneController::StandaloneController() :
 	Answer{}, Address(P1P2_DAIKIN_DEFAULT_EXT_CTRL_ADDR),
 	Ready(false), State(IDLE),
-	IdleCounterMs(make_timeout_time_ms(TIMEOUT_IDLE_MS)) {
+	IdleCounterMs(make_timeout_time_ms(TIMEOUT_IDLE_MS)),
+	ExtCtrlPacketsTodo(0) {
 
 	this->Answer.Data[0] = P1P2_DAIKIN_CMD_ANSWER;
 	this->Answer.Data[1] = this->Address;
@@ -49,6 +50,49 @@ void StandaloneController::Check(void) {
 	}
 }
 
+// Returns true when 3xh packets needs to be exchanged (bus is busy)
+bool StandaloneController::ExtCtrlPhase(void) {
+	return this->ExtCtrlPacketsTodo > 0;
+}
+
+// Returns true when the last 3xh packets is exchanged (bus is busy)
+bool StandaloneController::ExtCtrlPhaseEndsNow(void) {
+	return this->ExtCtrlPacketsTodo == 1;
+}
+
+// Update bus busy status
+void StandaloneController::UpdateExtCtrlPhase(const Message *in) {
+	if (in->Length <= 3)
+		return;
+
+	if (in->Data[1] != this->Address) {
+		// Only accept packets for the external controller address.
+		return;
+	}
+
+	switch (in->Data[2]) {
+		case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
+			if (in->Data[0] == P1P2_DAIKIN_CMD_REQUEST) {
+				// Need to handle answer to P1P2_DAIKIN_CMD_REQUEST
+				this->ExtCtrlPacketsTodo = 1;
+				for (int i = 3; i < in->Length - 1; i++)
+					this->ExtCtrlPacketsTodo += in->Data[i] * 2;
+			} else {
+				this->ExtCtrlPacketsTodo = 0;
+				// Count packets to be transmitted
+				for (int i = 3; i < in->Length - 1; i++)
+					this->ExtCtrlPacketsTodo += in->Data[i] * 2;
+			}
+			break;
+		case P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
+			if (this->ExtCtrlPacketsTodo > 0)
+				this->ExtCtrlPacketsTodo --;
+			break;
+		default:
+			return;
+	}
+}
+
 // Receive a paket and decide if it's valid
 // and needs to be handled.
 void StandaloneController::Receive(const Message *in) {
@@ -69,10 +113,10 @@ void StandaloneController::Receive(const Message *in) {
 			if (this->Address > 0xF1)
 				this->Address = P1P2_DAIKIN_DEFAULT_EXT_CTRL_ADDR;
 			this->Answer.Data[1] = this->Address;
-			this->Answer.Data[17] = this->GenCRC(&this->Answer, 17);
 		}
 		break;
 	case OPERATING:
+		this->UpdateExtCtrlPhase(in);
 		if (this->NeedToHandlePacket(in) &&
 		    this->GenCRC(in, in->Length - 1) == in->Data[in->Length - 1]) {
 			this->GenerateAnswer(in);
@@ -105,15 +149,9 @@ bool StandaloneController::NeedToHandlePacket(const Message *in) {
 		return true;
 	case P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
 		{
-			// Check if cached response needs to be transmitted
-			uint8_t idx = type - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
-
-			if (this->Packet3xh[idx].Length > 3 &&
-				this->Packet3xh[idx].Data[0] == P1P2_DAIKIN_CMD_ANSWER &&
-				this->Packet3xh[idx].Data[2] == type) {
-				return true;
-			}
-			break;
+			// Always answer to reduce remote waiting 150msec for an answer
+			// When no cached packet is available generate NULL packet
+			return true;
 		}
 	}
 
@@ -130,9 +168,13 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 		for (int i = 3; i < 17; i++) {
 			this->Answer.Data[i] = in->Data[i];
 
-			/* Request packet 0x3x to be handled in the current cycle */
-			if (i >= 4 && this->Packet3xh[i - 4].Length > 3) {
-				this->Answer.Data[i] |= 1;
+			// Request packet 3xh to be handled in the current cycle
+			if (i >= 4) {
+				// Returning 0 here doesn't prevent the other side from sending the packet.
+				// Thus only request to handle the packet when the remote doesn't want
+				// to send a packet yet.
+				if ((this->Packet3xh[i - 4].Length > 3) && this->Answer.Data[i] == 0)
+					this->Answer.Data[i] = 1;
 			}
 		}
 
@@ -153,21 +195,38 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 	case P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
 		{
 			uint8_t idx = type - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
-			if (this->Packet3xh[idx].Length <= 3) {
-				this->Ready = false;
-				return;
-			}
-
 			this->Answer.Data[2] = type;
 
-			// Copy cached payload to Answer
-			for (int i = 3; i < this->Packet3xh[idx].Length - 1; i++) {
-				this->Answer.Data[i] = this->Packet3xh[idx].Data[i];
-			}
-			this->Answer.Length = this->Packet3xh[idx].Length;
+			if (this->Packet3xh[idx].Length > 3) {
+				// Copy cached payload
+				for (int i = 3; i < this->Packet3xh[idx].Length - 1; i++) {
+					this->Answer.Data[i] = this->Packet3xh[idx].Data[i];
+				}
+				this->Answer.Length = this->Packet3xh[idx].Length;
 
-			// Mark cached packet as transmitted
-			this->Packet3xh[idx].Length = 0;
+				// Mark cached packet as transmitted
+				this->Packet3xh[idx].Length = 0;
+			} else {
+				// No cached packet, respond with NULL data packet (all bytes 0xff).
+				// This prevents a timeout on the remote waiting for an answer:
+				//   The remote waits about 150msec, thus there's a 180msec gap between two
+				//   packets when no answer is being transmitted.
+				//
+				// With this code the gap between 3xh packets is 120msec.
+				int len;
+				if (type == 0x35 || type == 0x3a || type == 0x38 || type == 0x39 || type == 0x3d)
+					len = 22;
+				else if (type == 0x36 || type == 0x3b || type == 0x37 || type == 0x3c)
+					len = 24;
+				else {
+					this->Ready = false;
+					return;
+				}
+				// Generate NULL answer
+				for (int i = 3; i < len - 1; i++)
+					this->Answer.Data[i] = 0xff;
+				this->Answer.Length = len;
+			}
 
 			break;
 		}

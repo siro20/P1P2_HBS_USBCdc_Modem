@@ -54,6 +54,12 @@ class StandaloneController
     // Generates a response message.
     void GenerateAnswer(const Message *in);
 
+    // Returns true when 3xh packets needs to be exchanged (bus is busy)
+    bool ExtCtrlPhase(void);
+
+    // Returns true when the last 3xh packets is exchanged (bus is busy)
+    bool ExtCtrlPhaseEndsNow(void);
+
   private:
     enum CTRL_STATE {
       IDLE = 0,
@@ -61,6 +67,8 @@ class StandaloneController
       OPERATING,
     };
 
+    // Returns true when 3xh packets needs to be exchanged (bus is busy)
+    void UpdateExtCtrlPhase(const Message *in);
     uint8_t GenCRC(const Message *in, size_t len);
     // Message to answer latest request
     Message Answer;
@@ -74,4 +82,6 @@ class StandaloneController
     enum CTRL_STATE State;
     // Counter used in the state machine
     absolute_time_t IdleCounterMs;
+    // Counter of remaining 3xh packets
+    size_t ExtCtrlPacketsTodo;
 };
