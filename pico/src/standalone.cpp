@@ -61,7 +61,8 @@ bool StandaloneController::ExtCtrlPhaseEndsNow(void) {
 }
 
 // Update bus busy status
-void StandaloneController::UpdateExtCtrlPhase(const Message *in) {
+void __attribute__((optimize("no-unroll-loops"))) StandaloneController::UpdateExtCtrlPhase(const Message *in)  {
+	size_t packets_todo;
 	if (in->Length <= 3)
 		return;
 
@@ -72,17 +73,16 @@ void StandaloneController::UpdateExtCtrlPhase(const Message *in) {
 
 	switch (in->Data[2]) {
 		case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
+			packets_todo = 0;
+			// Count packets to be transmitted
+			for (int i = 3; i < in->Length - 1; i++)
+				packets_todo += in->Data[i];
+
+			packets_todo *= 2;
 			if (in->Data[0] == P1P2_DAIKIN_CMD_REQUEST) {
-				// Need to handle answer to P1P2_DAIKIN_CMD_REQUEST
-				this->ExtCtrlPacketsTodo = 1;
-				for (int i = 3; i < in->Length - 1; i++)
-					this->ExtCtrlPacketsTodo += in->Data[i] * 2;
-			} else {
-				this->ExtCtrlPacketsTodo = 0;
-				// Count packets to be transmitted
-				for (int i = 3; i < in->Length - 1; i++)
-					this->ExtCtrlPacketsTodo += in->Data[i] * 2;
+				packets_todo++;
 			}
+			this->ExtCtrlPacketsTodo = packets_todo;
 			break;
 		case P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
 			if (this->ExtCtrlPacketsTodo > 0)
