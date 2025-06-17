@@ -20,7 +20,7 @@ class TxStateMachine
 			UART->ClearFifo();
 			UART->EnableShutdown(true);
 		}
-		
+
 		~TxStateMachine(void) {}
 
 		static TxStateMachine& getInstance(UARTPio& Pio)
@@ -44,26 +44,9 @@ class TxStateMachine
 			}
 		}
 
-		// Load a new message to be transmitted. Only has effect when the
-		// state machine is in the wait for idle state.
-		void Transmit(Message &Msg) {
-			if (State.Value() == TxState::RUNNING_WAIT_FOR_IDLE) {
-				TxMsg = Msg;
-				TxOffset = 0;
-				Err = false;
-				RxMsg.Clear();
-				ChangeState(TxState::RUNNING_WAIT_FOR_IDLE_RESTART);
-			}
-		}
-
 		// Returns true if the TX state machine is in the idle state
 		bool IsIdle(void) {
 			return State.Value() == TxState::IDLE;
-		}
-
-		// Returns true if the TX state machine waiting for idle
-		bool WaitsForIdle(void) {
-			return State.Value() == TxState::RUNNING_WAIT_FOR_IDLE;
 		}
 
 		// Returns true if the TX state machine isn't in the idle state
@@ -153,12 +136,6 @@ class TxStateMachine
 				if (!LineIsBusy)
 					ChangeState(TxState::IDLE);
 				break;
-			case TxState::RUNNING_WAIT_FOR_IDLE_RESTART:
-				// Wait for idle and transmit the next packet without waiting for the
-				// transmitter to turn on, it's still on.
-				if (State.TimedOut() && !LineIsBusy && !UART->Transmitting() && TxOffset == 0)
-					ChangeState(TxState::STARTED_WAIT_FOR_BUSY);
-				break;
 			}
 
 			if (BusCollision) {
@@ -189,8 +166,6 @@ class TxStateMachine
 				UART->Send(TxMsg);
 				break;
 			case TxState::RUNNING_CHECK_DATA:
-				break;
-			case TxState::RUNNING_WAIT_FOR_IDLE_RESTART:
 				break;
 			case TxState::RUNNING_WAIT_FOR_IDLE:
 				// FIFO should be empty.

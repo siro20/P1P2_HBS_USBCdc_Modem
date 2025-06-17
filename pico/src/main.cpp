@@ -333,24 +333,23 @@ static void core0_entry() {
 		SM.Update(LineIsBusy, Core1Data.RxError, Core1Data.RxValid, Core1Data.RxChar);
 
 		Message TxMsg;
+		// Relay messages for standalone controller
+		// It will be transmitted when requested by the control unit
 		if (hostUart.HasDataExtController()) {
 			TxMsg = hostUart.PopExtController();
 			ctrl.CacheTxMessage(TxMsg);
 		}
-
+		// Let standalone controller also handle non standalone packets!
+		// It will send those packets instead of the "correct" answer packet
+		// to avoid bus collissions.
+		if (hostUart.HasDataGeneric() && !ctrl.Non3xhPacketWaitForTransmission()) {
+			TxMsg = hostUart.PopGeneric();
+			ctrl.CacheTxMessage(TxMsg);
+		}
 		// Transmit packet if any. Start transmission in the moment the lines becomes idle.
 		if (SM.IsIdle() && ctrl.HasTxData()) {
 			ctrl.TxAnswer(&TxMsg);
 			SM.WakeAndTransmit(TxMsg);
-		} else if (hostUart.HasDataGeneric() && ctrl.ExtCtrlPhaseEndsNow() && SM.WaitsForIdle()) {
-			// Active bus collision prevention!
-			// Transmit when in the 3xh parameter exchange phase ends.
-			//
-			// In phase WaitsForIdle the output buffers are still enabled,
-			// thus there's no need to wait TX_POWERON_TIMEOUT_US usec before
-			// starting to transmit.
-			TxMsg = hostUart.PopGeneric();
-			SM.Transmit(TxMsg);
 		}
 
 		Core1Data.Raw = 0;

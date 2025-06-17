@@ -12,13 +12,10 @@
 // emulate an 'external controller'.
 
 StandaloneController::StandaloneController() :
-	Answer{}, Address(P1P2_DAIKIN_DEFAULT_EXT_CTRL_ADDR),
+	Answer{}, Non3xhPacket{}, Address(P1P2_DAIKIN_DEFAULT_EXT_CTRL_ADDR),
 	Ready(false), State(IDLE),
 	IdleCounterMs(make_timeout_time_ms(TIMEOUT_IDLE_MS)),
 	ExtCtrlPacketsTodo(0) {
-
-	this->Answer.Data[0] = P1P2_DAIKIN_CMD_ANSWER;
-	this->Answer.Data[1] = this->Address;
 }
 
 // Periodic state machine function
@@ -112,7 +109,6 @@ void StandaloneController::Receive(const Message *in) {
 			this->Address++;
 			if (this->Address > 0xF1)
 				this->Address = P1P2_DAIKIN_DEFAULT_EXT_CTRL_ADDR;
-			this->Answer.Data[1] = this->Address;
 		}
 		break;
 	case OPERATING:
@@ -162,8 +158,13 @@ bool StandaloneController::NeedToHandlePacket(const Message *in) {
 // Generates a response message.
 void StandaloneController::GenerateAnswer(const Message *in) {
 	uint8_t type = in->Data[2];
+
+	this->Ready = false;
+
 	switch (type) {
 	case P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL:
+		this->Answer.Data[0] = P1P2_DAIKIN_CMD_ANSWER;
+		this->Answer.Data[1] = this->Address;
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL;
 		for (int i = 3; i < 17; i++) {
 			this->Answer.Data[i] = in->Data[i];
@@ -182,6 +183,8 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 	break;
 
 	case P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL:
+		this->Answer.Data[0] = P1P2_DAIKIN_CMD_ANSWER;
+		this->Answer.Data[1] = this->Address;
 		this->Answer.Data[2] = P1P2_DAIKIN_TYPE_STATUS_EXT_CTRL;
 		for (int i = 3; i < 15; i++) {
 			this->Answer.Data[i] = in->Data[i];
@@ -195,9 +198,11 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 	case P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL...P1P2_DAIKIN_TYPE_EXT_LAST:
 		{
 			uint8_t idx = type - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
+			this->Answer.Data[0] = P1P2_DAIKIN_CMD_ANSWER;
+			this->Answer.Data[1] = this->Address;
 			this->Answer.Data[2] = type;
 
-			if (this->Packet3xh[idx].Length > 3) {
+			if (this->Packet3xh[idx].Length) {
 				// Copy cached payload
 				for (int i = 3; i < this->Packet3xh[idx].Length - 1; i++) {
 					this->Answer.Data[i] = this->Packet3xh[idx].Data[i];
@@ -206,6 +211,24 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 
 				// Mark cached packet as transmitted
 				this->Packet3xh[idx].Length = 0;
+			} else if (this->Non3xhPacket.Length) {
+				// Protocol violation! Send a 'wrong' packet here!
+				// The remote waits about 180 msec for a correct response.
+				//
+				// Send a non 3xh packet instead of correct answer to avoid bus collision.
+				// Tests showed that the P1P2 control unit does not monitor the bus and
+				// starts transmitting after a fixed delay, overwriting a currently transmitted
+				// packet. As it waits here 180msec, this gives the oppertunity to transmit and
+				// receive custom packets here.
+				//
+
+				// Copy cached payload
+				for (int i = 0; i < this->Non3xhPacket.Length - 1; i++) {
+					this->Answer.Data[i] = this->Non3xhPacket.Data[i];
+				}
+				this->Answer.Length = this->Non3xhPacket.Length;
+	
+				this->Non3xhPacket.Length = 0;
 			} else {
 				// No cached packet, respond with NULL data packet (all bytes 0xff).
 				// This prevents a timeout on the remote waiting for an answer:
@@ -219,7 +242,6 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 				else if (type == 0x36 || type == 0x3b || type == 0x37 || type == 0x3c)
 					len = 24;
 				else {
-					this->Ready = false;
 					return;
 				}
 				// Generate NULL answer
@@ -232,7 +254,6 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 		}
 
 	default:
-		this->Ready = false;
 		return;
 	}
 
@@ -241,6 +262,7 @@ void StandaloneController::GenerateAnswer(const Message *in) {
 			this->GenCRC(&this->Answer, this->Answer.Length - 1);
 	this->Ready = true;
 }
+
 // Returns true when TxAnswer should be transmitted.
 // Only true as long as TxAnswer() has not been called.
 // Only true till another packet is received, aka. Receive() is called
@@ -248,14 +270,27 @@ bool StandaloneController::HasTxData(void) {
 	return this->Ready;
 }
 
+// Returns true when a non 3xh packet is waiting for transmission
+bool StandaloneController::Non3xhPacketWaitForTransmission(void) {
+	return this->Non3xhPacket.Length > 0;
+}
+
 // Cache a message and transmit it on the next free slot
 bool StandaloneController::CacheTxMessage(Message& in) {
-	if (in.Length <= 3 ||
-		in.Data[0] != P1P2_DAIKIN_CMD_ANSWER ||
-		in.Data[2] < P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL ||
-		in.Data[2] > P1P2_DAIKIN_TYPE_EXT_LAST) {
+	if (in.Length <= 3)
 		return false;
+
+	if (in.Data[2] < P1P2_DAIKIN_TYPE_SENSE_EXT_CTRL ||
+		in.Data[2] > P1P2_DAIKIN_TYPE_EXT_LAST) {
+		this->Non3xhPacket = in;
+		return true;
 	}
+
+	if (in.Data[0] != P1P2_DAIKIN_CMD_ANSWER ||
+		in.Data[2] < P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL ||
+		in.Data[2] > P1P2_DAIKIN_TYPE_EXT_LAST)
+		return false;
+
 	uint8_t idx = in.Data[2] - P1P2_DAIKIN_TYPE_PARAM_EXT_CTRL;
 
 	// Still have old packet in cache, abort...

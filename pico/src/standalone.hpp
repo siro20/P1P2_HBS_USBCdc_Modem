@@ -60,6 +60,10 @@ class StandaloneController
     // Returns true when the last 3xh packets is exchanged (bus is busy)
     bool ExtCtrlPhaseEndsNow(void);
 
+    // Returns true when a non 3xh packet is waiting for transmission
+    bool Non3xhPacketWaitForTransmission(void);
+
+
   private:
     enum CTRL_STATE {
       IDLE = 0,
@@ -74,6 +78,8 @@ class StandaloneController
     Message Answer;
     // Cached responses for Packet 32h - 3fh
     Message Packet3xh[14];
+    // Cached response for Packet != 3xh
+    Message Non3xhPacket;
     // The address to listen on
     size_t Address;
     // Has message to transmit
